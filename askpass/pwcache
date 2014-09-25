@@ -1,0 +1,12 @@
+#!/bin/sh
+
+echo -n "(pwcache) Password: "
+state=`stty -g`
+stty -echo
+read p < /dev/tty
+export ASKPASS_PASSWORD="$p"
+stty $state
+
+export GIT_ASKPASS="askpass-env"
+export SSH_ASKPASS="askpass-env"
+exec "$@"

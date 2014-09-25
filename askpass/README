@@ -1,0 +1,11 @@
+Simple caching password agent:
+
+  pwcache mycommand argument ...
+  
+    1) Prompt for a password (store it in in ASSKPASS_PASSWORD)
+    2) Setup askpass-env as a password provider
+    3) exec command
+
+  askpass-env
+
+    Provide password in ASKPASS_PASSWORD
