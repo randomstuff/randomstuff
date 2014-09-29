@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+# Parse a second #! line.
+# This line is passed to 'sh -c'.
+# This allow more flexibility.
+
+# Example usage:
+#!/usr/bin/env shbang
+#!exec mutt -F "$@"
+
+shbang_run() {
+
+    local command
+    local shbang
+
+    command="$1"
+    shbang="$(head -n2 -- "$command"| tail -n1)"
+
+    case "$shbang" in
+        \#!*)
+	    shbang="${shbang#\#\!}"
+            exec sh -c "${shbang}" "$@"
+            ;;
+        *)
+            echo "Wrong command: #shbang";
+            exit 127
+            ;;
+    esac
+}
+
+shbang_run "$@"
