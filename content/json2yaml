@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# Not working
+
+require 'yaml'
+require 'json'
+
+if ARGV.length==0
+  data = JSON.load(STDIN)
+else
+  File.open ARGV[0] do |f|
+    data = JSON.load(f)
+  end
+end
+puts YAML.dump(data)
