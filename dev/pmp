@@ -7,6 +7,7 @@ sleeptime=$2
 pid=$3
 
 for x in $(seq 1 $nsamples); do
-    gdb -ex "set pagination 0" -ex "thread apply all bt" -batch -p $pid 2> /dev/null
+    gdb -ex "set pagination 0" -ex "thread apply all bt" \
+      -batch -p $pid 2> /dev/null
     sleep $sleeptime
 done

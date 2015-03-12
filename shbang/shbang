@@ -17,13 +17,13 @@ shbang_run() {
 
     case "$shbang" in
         \#!*)
-	    shbang="${shbang#\#\!}"
-            exec sh -c "${shbang}" "$@"
-            ;;
+          shbang="${shbang#\#\!}"
+          exec sh -c "${shbang}" "$@"
+          ;;
         *)
-            echo "Wrong command: #shbang";
-            exit 127
-            ;;
+          echo "Wrong command: #shbang";
+          exit 127
+          ;;
     esac
 }
 
