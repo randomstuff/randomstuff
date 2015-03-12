@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-# Not working
 
 require 'yaml'
 require 'json'
