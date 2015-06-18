@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# coding: utf-8
 
 # The MIT License (MIT)
 #
@@ -53,6 +54,13 @@ def css_unwrap doc, selector
   end
 end
 
+def dfs node, &block
+  node.children.each do |x|
+    yield x
+    dfs x, &block
+  end
+end
+
 ## Load the stuff:
 
 if (ARGV[0])
@@ -66,8 +74,14 @@ doc = Nokogiri::HTML::DocumentFragment.parse html
 remove_attributes(doc, "*[style]", "style");
 remove_attributes(doc, "*[lang]", "lang");
 css_unwrap(doc, "span")
+css_unwrap(doc, "address")
 for i in (0..6) do
   css_unwrap(doc, "h#{i} b")
+end
+
+# Turn <i> into <q>:
+doc.css("i").each do |node|
+  node.node_name = "q"
 end
 
 # Split paragraphs on <br/>:
@@ -88,6 +102,27 @@ end
 doc.css("p").each do |node|
   if node.element_children.empty? && /\A *\z/.match(node.inner_text)
     node.remove
+  end
+end
+
+dfs doc do |node|
+  case node.node_type
+  when Nokogiri::XML::Node::TEXT_NODE, Nokogiri::XML::Node::CDATA_SECTION_NODE
+    content = node.content
+    content.gsub!('...', '…')
+    content.gsub!("''", '"')
+    content.gsub!(/(\p{L})"/, '\1”')
+    content.gsub!(/"(\p{L})/, '“\1')
+    content.gsub!(/"(\p{Zs})/, '”\1')
+    content.gsub!(/(\p{Zs})"/, '\1“')
+    content.gsub!(/"(\p{P})/, '”\1')
+    content.gsub!(/(\p{P})"/, '\1“')
+    content.gsub!('« ', '« ')
+    content.gsub!(' :', ' :')
+    content.gsub!(' ;', ' ;')
+    content.gsub!(' !', ' !')
+    content.gsub!(' ?', ' ?')
+    node.content = content
   end
 end
 
