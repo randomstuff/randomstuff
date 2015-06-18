@@ -22,9 +22,38 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Remove some crap from HTMl snippets.
+# Remove some crap from HTML snippets. Well they need not be crap but
+# there usually are.
 
 require "nokogiri"
+
+## Functions
+
+def remove_attributes(doc, selector, name)
+  doc.css(selector).each do |node|
+    att = node.attribute(name)
+    if att
+      node.remove_attribute(name)
+      $stderr.puts "Removed name: #{name}\n"
+    end
+  end
+end
+
+def unwrap node
+  node.children.each do |x|
+    node.before(x)
+  end
+  node.remove
+end
+
+def css_unwrap doc, selector
+  doc.css(selector).each do |y|
+    $stderr.puts "Unwrapping: #{y}\n"
+    unwrap y
+  end
+end
+
+## Load the stuff:
 
 if (ARGV[0])
   html = File.read(ARGV[0])
@@ -33,20 +62,12 @@ else
 end
 doc = Nokogiri::HTML::DocumentFragment.parse html
 
-# Remove 'style':
-doc.css("*[style]").each do |node|
-  style = node.attribute("style")
-  node.remove_attribute("style")
-  $stderr.puts "Removed style: #{style}\n"
-end
-
-# Remove useless span:
-doc.css("span").each do |span|
-  $stderr.puts "Unwrapping span: #{span}\n"
-  span.children.each do |x|
-    span.before(x)
-  end
-  span.remove
+# Basic cleanup: remove some attributes and elements.
+remove_attributes(doc, "*[style]", "style");
+remove_attributes(doc, "*[lang]", "lang");
+css_unwrap(doc, "span")
+for i in (0..6) do
+  css_unwrap(doc, "h#{i} b")
 end
 
 # Split paragraphs on <br/>:
