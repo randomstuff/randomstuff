@@ -54,13 +54,6 @@ def css_unwrap doc, selector
   end
 end
 
-def dfs node, &block
-  node.children.each do |x|
-    yield x
-    dfs x, &block
-  end
-end
-
 ## Load the stuff:
 
 if (ARGV[0])
@@ -105,7 +98,7 @@ doc.css("p").each do |node|
   end
 end
 
-dfs doc do |node|
+doc.traverse do |node|
   case node.node_type
   when Nokogiri::XML::Node::TEXT_NODE, Nokogiri::XML::Node::CDATA_SECTION_NODE
     content = node.content
