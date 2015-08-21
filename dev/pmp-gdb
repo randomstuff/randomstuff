@@ -2,12 +2,12 @@
 # "Poor man's profiler" - http://poormansprofiler.org/
 # See also: http://dom.as/tag/gdb/
 
-nsamples=$1
-sleeptime=$2
-pid=$3
+nsamples="$1"
+sleeptime="$2"
+pid="$3"
 
-for x in $(seq 1 $nsamples); do
+for x in $(seq 1 "$nsamples"); do
     gdb -ex "set pagination 0" -ex "thread apply all bt" \
-      -batch -p $pid 2> /dev/null
-    sleep $sleeptime
+      -batch -p "$pid" 2> /dev/null
+    sleep "$sleeptime"
 done
