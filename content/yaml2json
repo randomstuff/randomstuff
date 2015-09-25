@@ -10,4 +10,6 @@ else
     data = SafeYAML.load(f)
   end
 end
-puts JSON.pretty_generate(data)
+
+$stdout.set_encoding "UTF-8"
+$stdout.puts JSON.pretty_generate(data)
