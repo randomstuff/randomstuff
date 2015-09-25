@@ -2,14 +2,88 @@
 
 require 'safe_yaml/load'
 require 'json'
+require 'optparse'
 
-if ARGV.length==0
-  data = SafeYAML.load(STDIN)
-else
-  File.open ARGV[0] do |f|
-    data = SafeYAML.load(f)
+$options = {}
+$options[:multiple] = false
+$options[:format] = "plain"
+$options[:pretty] = false
+
+OptionParser.new do |opts|
+  opts.banner = <<END
+yaml2json: Conversion from YAML to JSON
+
+Usage: yaml2json [foo.yaml]
+END
+  opts.on "-f", "--format [FORMAT]", "Format (plain, seq)" do |f|
+    $options[:format] = f
+  end
+  opts.on "--plain", "Plain output" do |f|
+    $options[:format] = "plain"
+  end
+  opts.on "--seq", "JSON text sequence output (RFC7464)" do |f|
+    $options[:format] = "seq"
+  end
+  opts.on "-m", "--[no-]multiple", "Multiple document" do |m|
+    $options[:multiple] = m
+  end
+  opts.on "-p", "--[no-]pretty", "Pretty" do |m|
+    $options[:pretty] = m
+  end
+  opts.on_tail("-h", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+  opts.on_tail("--version", "Show version") do
+    puts "v0.0"
+    exit
+  end
+end.parse!
+
+$stdout.set_encoding "UTF-8"
+
+def dump(xs)
+  xs.each do |x|
+    next if x.nil?
+    if $options[:pretty]
+      json = JSON.pretty_generate(x)
+    else
+      json = JSON.generate(x)
+    end
+    case $options[:format]
+    when "plain"
+      $stdout.puts json
+    when "seq"
+      $stdout.print "\x1e" + json + "\n" unless json.nil?
+    else
+      $stderr.puts "Bad format: #{options[:format]}"
+      exit 1
+    end
   end
 end
 
-$stdout.set_encoding "UTF-8"
-$stdout.puts JSON.pretty_generate(data)
+def load(file)
+  if $options[:multiple]
+    # YAML.load_stream(file)
+    $stderr.puts "Multiple document/streaming support disabled for security reasons"
+    exit 1
+  else
+    [ YAML.load(file, :safe => true) ]
+  end
+end
+
+
+if ARGV.length == 0
+  ARGV.clear
+  ARGV.push "-"
+end
+
+ARGV.each do |filename|
+  if filename == "-"
+    dump(load(STDIN))
+  else
+    File.open filename do |file|
+      dump(load(file))
+    end
+  end
+end
