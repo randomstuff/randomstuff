@@ -1,0 +1,2 @@
+#!/bin/sh
+./tilt-render --data example/data.yaml example/template.erb example/content.md
