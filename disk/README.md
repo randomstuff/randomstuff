@@ -1,7 +1,9 @@
 # Crappy scripts to mount disk image (such as ISOs) using udisks2
 
 Simple scripts which use the dbus udisks2 API to mount disk images
-without begin root. Similar to pmout but for disk images.
+without begin root.
+
+Similar to pmount but for disk images.
 
 Usage (CLI):
 
@@ -9,4 +11,14 @@ Usage (CLI):
 
 Usage (GUI):
 
-    open-diskimage foobar.iso
+    xdg-open $(mount-diskimage foobar.iso)
+
+You can use any file manager instead (nautilus, thunar, dolphin, pcmanfm, etc.).
+
+Some file manager provide an option to unmount the disk:
+
+* thunar;
+
+* pcmanfm;
+
+* older versions of nautilus (I can't find the option on the latest version).
