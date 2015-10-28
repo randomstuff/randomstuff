@@ -16,5 +16,5 @@ loop = dbus.Interface(manager, "org.freedesktop.UDisks2.Manager").LoopSetup(fd, 
 loop = bus.get_object("org.freedesktop.UDisks2", loop)
 path = dbus.Interface(loop, "org.freedesktop.UDisks2.Filesystem").Mount({})
 dbus.Interface(loop, "org.freedesktop.UDisks2.Loop").SetAutoclear(True, {})
-print(path)
+sys.stdout.write(path)
 sys.exit(0)

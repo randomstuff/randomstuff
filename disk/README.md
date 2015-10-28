@@ -7,11 +7,11 @@ Similar to pmount but for disk images.
 
 Usage (CLI):
 
-    cd $(mount-diskimage foobar.iso)
+    cd "$(mount-diskimage foobar.iso)"
 
 Usage (GUI):
 
-    xdg-open $(mount-diskimage foobar.iso)
+    xdg-open "$(mount-diskimage foobar.iso)"
 
 You can use any file manager instead (nautilus, thunar, dolphin, pcmanfm, etc.).
 

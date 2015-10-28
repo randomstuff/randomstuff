@@ -1,2 +1,2 @@
 #!/bin/sh
-exec xdg-open $(mount-diskimage "$@")
+exec xdg-open "$(mount-diskimage "$@")"
