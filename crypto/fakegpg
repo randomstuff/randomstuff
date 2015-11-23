@@ -1,0 +1,10 @@
+#!/bin/sh
+# Crypto based on https://xkcd.com/1181/
+# Decode with: grep -v ^- | grep -v ^Version | base64 -d
+
+set -e
+echo "----BEGIN PGP MESSAGE-----"
+echo "Version: GnuPG v1"
+echo
+cat -- "$@" | base64
+echo "-----END PGP MESSAGE-----"  
