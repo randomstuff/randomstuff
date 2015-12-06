@@ -54,7 +54,62 @@ def css_unwrap doc, selector
   end
 end
 
-## Load the stuff:
+# Turn <i> into <q>:
+def i_to_q(doc)
+  doc.css("i").each do |node|
+    node.node_name = "q"
+  end
+end
+
+def split_paragraphs(doc)
+# Split paragraphs on <br/>:
+  doc.css("p > br").each do |br|
+    p = br.parent
+
+    # Clone
+    new_p = p.document.create_element("p")
+    p.children.take_while{ |x| x!=br }.each do |x|
+      new_p.add_child x
+    end
+    p.before(new_p)
+
+    br.remove
+  end
+end
+
+def strip_empty_paragraphs(doc)
+  # Remove empty paragraphs:
+  doc.css("p").each do |node|
+    if node.element_children.empty? && /\A *\z/.match(node.inner_text)
+      node.remove
+    end
+  end
+end
+
+def pants(doc)
+  doc.traverse do |node|
+    case node.node_type
+    when Nokogiri::XML::Node::TEXT_NODE, Nokogiri::XML::Node::CDATA_SECTION_NODE
+      content = node.content
+      content.gsub!('...', '…')
+      content.gsub!("''", '"')
+      content.gsub!(/(\p{L})"/, '\1”')
+      content.gsub!(/"(\p{L})/, '“\1')
+      content.gsub!(/"(\p{Zs})/, '”\1')
+      content.gsub!(/(\p{Zs})"/, '\1“')
+      content.gsub!(/"(\p{P})/, '”\1')
+      content.gsub!(/(\p{P})"/, '\1“')
+      content.gsub!('« ', '« ')
+      content.gsub!(' :', ' :')
+      content.gsub!(' ;', ' ;')
+      content.gsub!(' !', ' !')
+      content.gsub!(' ?', ' ?')
+      node.content = content
+    end
+  end
+end
+
+# Main script:
 
 if (ARGV[0])
   html = File.read(ARGV[0])
@@ -62,61 +117,19 @@ else
   html = $stdin.read
 end
 doc = Nokogiri::HTML::DocumentFragment.parse html
-
-# Basic cleanup: remove some attributes and elements.
+# TODO, remove <font>
+remove_attributes(doc, "*[dir]", "dir");
 remove_attributes(doc, "*[style]", "style");
 remove_attributes(doc, "*[lang]", "lang");
+ remove_attributes(doc, "*[class='western']", "class");
 css_unwrap(doc, "span")
+css_unwrap(doc, "font")
 css_unwrap(doc, "address")
 for i in (0..6) do
   css_unwrap(doc, "h#{i} b")
 end
-
-# Turn <i> into <q>:
-doc.css("i").each do |node|
-  node.node_name = "q"
-end
-
-# Split paragraphs on <br/>:
-doc.css("p > br").each do |br|
-  p = br.parent
-
-  # Clone
-  new_p = p.document.create_element("p")
-  p.children.take_while{ |x| x!=br }.each do |x|
-    new_p.add_child x
-  end
-  p.before(new_p)
-
-  br.remove
-end
-
-# Remove empty paragraphs:
-doc.css("p").each do |node|
-  if node.element_children.empty? && /\A *\z/.match(node.inner_text)
-    node.remove
-  end
-end
-
-doc.traverse do |node|
-  case node.node_type
-  when Nokogiri::XML::Node::TEXT_NODE, Nokogiri::XML::Node::CDATA_SECTION_NODE
-    content = node.content
-    content.gsub!('...', '…')
-    content.gsub!("''", '"')
-    content.gsub!(/(\p{L})"/, '\1”')
-    content.gsub!(/"(\p{L})/, '“\1')
-    content.gsub!(/"(\p{Zs})/, '”\1')
-    content.gsub!(/(\p{Zs})"/, '\1“')
-    content.gsub!(/"(\p{P})/, '”\1')
-    content.gsub!(/(\p{P})"/, '\1“')
-    content.gsub!('« ', '« ')
-    content.gsub!(' :', ' :')
-    content.gsub!(' ;', ' ;')
-    content.gsub!(' !', ' !')
-    content.gsub!(' ?', ' ?')
-    node.content = content
-  end
-end
-
+i_to_q(doc)
+split_paragraphs(doc)
+strip_empty_paragraphs(doc)
+pants(doc)
 print doc.to_html
