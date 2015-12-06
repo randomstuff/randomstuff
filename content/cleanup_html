@@ -118,6 +118,7 @@ else
 end
 doc = Nokogiri::HTML::DocumentFragment.parse html
 # TODO, remove <font>
+remove_attributes(doc, "*[align]", "align");
 remove_attributes(doc, "*[dir]", "dir");
 remove_attributes(doc, "*[style]", "style");
 remove_attributes(doc, "*[lang]", "lang");
