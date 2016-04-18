@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'safe_yaml'
+require 'yaml'
 require 'json'
 
 if ARGV.length==0
@@ -10,4 +10,4 @@ else
     data = JSON.load(f)
   end
 end
-puts SafeYAML.dump(data)
+puts YAML.dump(data)
