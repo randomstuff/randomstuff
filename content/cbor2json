@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+
+import sys
+import json
+import cbor
+
+obj = cbor.load(sys.stdin.buffer)
+json.dump(obj, sys.stdout)
