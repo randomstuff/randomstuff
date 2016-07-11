@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+# Use ASF RMCP to discover RMCP-aware nodes (such as AMT/AMT or IPMI)
+# Keywords: DMTF, ASF RMCP, DASH, AMT, IPMI.
+
+import socket
+import ctypes
+import struct
+import sys
+import logging
+import ipaddress
+
+ASF_RMCP_PORT = 623
+ASF_RMCP_FORMAT = "!BBBBIBBBB"
+ASF_RMCP_PONG_FORMAT = "!IIBBBBBBBB"
+ASF_RMCP_VERSION1 = 0x6
+ASF_RMCP_MESSAGE_TYPE_PRESENCE_PONG = 0x40
+ASF_RMCP_MESSAGE_TYPE_PRESENCE_PING = 0x80
+ASF_RMCP_MESSAGE_TYPE_PRESENCE_PING_ACK = 0x86
+IANA_ASF = 4542
+
+address = sys.argv[1]
+if ipaddress.ip_address(address).version == 4:
+    address = "::ffff:" + address
+
+entreprise_names = {
+    343: "Intel",
+    3704: "AMD",
+    4542: "Alerting Specifications Forum",
+}
+
+
+def entreprise_name(n):
+    if n in entreprise_names:
+        return entreprise_names[n]
+    else:
+        return str(n)
+
+
+# RCMP ASF message (not ack)
+class Message:
+    def __init__(self):
+        self.version = ASF_RMCP_VERSION1
+        self.reserved = 0x00
+        self.seqno = 0x00
+        self.message_class = 0x00
+        self.entreprise_number = IANA_ASF
+        self.message_type = 0x00
+        self.message_tag = 0x00
+        self.reserved = 0x00
+        self.data = bytearray()
+
+    def load(self, message):
+        if (len(message) < struct.calcsize(ASF_RMCP_FORMAT)):
+            raise "Message too small"
+        (self.version, self.reserved, self.seqno, self.message_class,
+         self.entreprise_number, self.message_type, self.message_tag,
+         self.reserved, data_length) = \
+            struct.unpack_from(ASF_RMCP_FORMAT, message)
+        if len(message) != data_length + struct.calcsize(ASF_RMCP_FORMAT):
+            raise "Bad length"
+        rmcp_size = struct.calcsize(ASF_RMCP_FORMAT)
+        self.data = bytearray(memoryview(message)[rmcp_size:])
+
+    def to_bytes(self):
+        size = struct.calcsize(ASF_RMCP_FORMAT) + len(self.data)
+        res = bytearray(size)
+        struct.pack_into(ASF_RMCP_FORMAT, res, 0,
+                         self.version, self.reserved, self.seqno,
+                         self.message_class, self.entreprise_number,
+                         self.message_type, self.message_tag, self.reserved,
+                         len(self.data))
+        memoryview(res)[struct.calcsize(ASF_RMCP_FORMAT):] = self.data
+        return res
+
+
+class PongData:
+    def __init__(self, payload):
+        if struct.calcsize(ASF_RMCP_PONG_FORMAT) != len(payload):
+            print("Bad length for pong payload expected %i but was %i" %
+                  (struct.calcsize(ASF_RMCP_PONG_FORMAT), len(payload)))
+        (self.entreprise_number, self.oem_defined, self.supported_entities,
+         self.supported_interactions, self.reserved1,
+         self.reserved2, self.reserved3, self.reserved4, self.reserved5,
+         self.reserved6) = struct.unpack_from(ASF_RMCP_PONG_FORMAT, payload)
+
+    def ipmi(self):
+        return (self.supported_entities & 127) != 0
+
+    def asf(self):
+        return (self.supported_entities & 15) == 1
+
+    def dash(self):
+        return (self.supported_interactions & 32) != 0
+
+    def features(self):
+        res = []
+        if self.ipmi():
+            res.append("ipmi")
+        if self.asf():
+            res.append("asf")
+        if self.dash():
+            res.append("dash")
+        return res
+
+m = Message()
+m.message_class = ASF_RMCP_VERSION1
+m.message_type = ASF_RMCP_MESSAGE_TYPE_PRESENCE_PING
+
+sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+sock.sendto(m.to_bytes(), (address, ASF_RMCP_PORT))
+sock.settimeout(1)
+
+logging.info("Listening")
+try:
+    while True:
+        data, addr = sock.recvfrom(1024)
+        logging.debug("From " + str(addr[0]) + ": " + str(data))
+        if len(data) == 4 and data[0] == ASF_RMCP_VERSION1 and data[2] == 0 \
+                and data[3] == ASF_RMCP_MESSAGE_TYPE_PRESENCE_PING_ACK:
+            logging.debug("Ack from " + str(addr[0]))
+            continue
+        try:
+            m.load(data)
+        except:
+            continue
+        if m.message_type == ASF_RMCP_MESSAGE_TYPE_PRESENCE_PONG:
+            # Pong:
+            print(str(addr[0]))
+            pongData = PongData(m.data)
+            features = pongData.features()
+            print("\tEntreprise: %s" %
+                  entreprise_name(pongData.entreprise_number))
+            if len(features) != 0:
+                print("\tFeatures: %s" % ",".join(features))
+except socket.timeout:
+    pass
