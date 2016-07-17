@@ -1,0 +1,16 @@
+*~
+*#
+*.swp
+*.log
+
+*.pyc
+*.so
+*.o
+*.class
+a.out
+*.hi
+*.xpi
+
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake

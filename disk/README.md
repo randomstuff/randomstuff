@@ -13,7 +13,7 @@ Usage (GUI):
 
     xdg-open "$(mount-diskimage foobar.iso)"
 
-You can use any file manager instead (nautilus, thunar, dolphin, pcmanfm, etc.).
+You can use any file manager instead (nautilG us, thunar, dolphin, pcmanfm, etc.).
 
 Some file manager provide an option to unmount the disk:
 
