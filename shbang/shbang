@@ -5,7 +5,7 @@
 
 # Example usage:
 #!/usr/bin/env shbang
-#!exec mutt -F "$@"
+#SHBANG exec mutt -F "$@"
 
 shbang_run() {
 
@@ -16,12 +16,12 @@ shbang_run() {
     shbang="$(head -n2 -- "$command"| tail -n1)"
 
     case "$shbang" in
-        \#!*)
-          shbang="${shbang#\#\!}"
+        \#SHBANG\ *)
+          shbang="${shbang#\#SHBANG\ }"
           exec sh -c "${shbang}" "$@"
           ;;
         *)
-          echo "Wrong command: #shbang";
+          echo "SHBANG script not recognized";
           exit 127
           ;;
     esac
