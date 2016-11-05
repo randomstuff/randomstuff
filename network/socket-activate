@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+"""
+Summary
+-------
+Launch a child process by passing file descriptors using the systemd API.
+
+Usage
+-----
+socket-activation INET DGRAM udp --bind ::1 5353 -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
+
+TODO
+----
+* change user and group
+* UNIX socket support
+* TUN support
+* FIFO support
+* ulimit
+* Options:
+  * TCP_NODELAY
+  * SO_BINDTODEVICE
+  * SO_DONTROUTE
+  * etc.
+"""
+
+import socket
+import sys
+import os
+
+def parse_family(family):
+    """
+    Parse an addres family (INET, INET6, LOCAL, etc.)
+    """
+    if not type(family) == str:
+        return family
+    try:
+        return int(family)
+    except ValueError:
+        return getattr(socket, "AF_" + family)
+
+def parse_type(socktype):
+    """
+    Parse a socket type (STREAM, DGRAM, SEQPACKET, etc.).
+    """
+    if not type(socktype) == str:
+        return type
+    try:
+        return int(socktype)
+    except ValueError:
+        return getattr(socket, "SOCK_" + socktype)
+
+def parse_proto(family, proto):
+    """
+    Parse a protocol (TCP, tcp, L2CAP, etc.)
+    """
+    if not type(proto) == str:
+        return proto
+    try:
+        return int(proto)
+    except ValueError:
+        pass
+    if family == socket.AF_CAN:
+        return getattr(socket, "CAN_" + proto)
+    if family == socket.AF_BLUETOOTH:
+        return getattr(socket, "BTPROTO_" + proto)
+    if family == socket.AF_INET or family == socket.AF_INET6:
+        try:
+            return getattr(socket, "IPPROTO_" + proto)
+        except AttributeError:
+            return socket.getprotobyname(proto)
+    raise ValueError
+
+class SocketDefinition:
+    """
+    Description of a socket we want to create.
+    """
+
+    def __init__(self, family=socket.AF_INET, socktype=socket.SOCK_STREAM, proto=0):
+        self._family = family
+        self._socktype = socktype
+        self._proto = proto
+        self._bind = None
+        self.name = "unknown"
+
+    def bind(self, addr, port):
+        # TODO, handle non INET as well
+        res = socket.getaddrinfo(addr, port,
+                                 family=self._family,
+                                 type=self._socktype, proto=self._proto)
+        self._bind = res[0][4]
+
+    def create(self):
+        """
+        Create the socket.
+        """
+        s = socket.socket(self._family, self._socktype, self._proto)
+        if self._bind != None:
+            s.bind(self._bind)
+        s.set_inheritable(True)
+        return s
+
+# Parse arguments:
+defs = []
+i = 1
+while i < len(sys.argv):
+    arg = sys.argv[i]
+    if arg == "--":
+        i = i + 1
+        break
+    if arg == "--name":
+        defs[-1].name = sys.argv[i+1]
+        i = i + 2
+    elif arg == "--bind":
+      defs[-1].bind(sys.argv[i + 1], sys.argv[i + 2])
+      i = i + 3
+    elif arg[0:2] == "--":
+        raise NotImplementedError
+    else:
+        (family, socktype, proto) = sys.argv[i:i+3]
+        i = i + 3
+        family = parse_family(family)
+        socktype = parse_type(socktype)
+        proto = parse_proto(family, proto)
+        defs.append(SocketDefinition(family, socktype, proto))
+exec_argv = sys.argv[i:]
+
+# Create the sockets:
+for (i,definition) in enumerate(defs):
+    s = definition.create()
+    # Move it at the suitable place:
+    if s.fileno() != i + 3:
+        os.dup2(s.fileno(), i + 3)
+        s.close()
+    else:
+        s.detach()
+
+# Prepare the environment:
+os.environ["LISTEN_FDS"] = str(len(defs))
+os.environ["LISTEN_PID"] = str(os.getpid())
+os.environ["LISTEN_FDNAMES"] = ":".join([ definition.name for definition in defs ])
+
+# Exec:
+try:
+    os.execvp(exec_argv[0], exec_argv)
+except:
+    os.exit(127)
