@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+
+"""
+Open a TCP connection and pass it over stdout.
+
+This can be used with OpenSSH `ProxyCommand` and `ProxyUseFdpass`
+options.
+
+See http://www.gabriel.urdhr.fr/2016/08/07/openssh-proxyusefdpass/
+
+Usage
+-----
+fdpass localhost 25
+"""
+
+import sys
+import socket
+import array
+
+# Create the file descriptor:
+s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM, 0)
+s.connect((sys.argv[1], int(sys.argv[2])))
+
+# Pass the file descriptor:
+ancdata = [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array("i", [s.fileno()]))]
+socket.socket(fileno = 1).sendmsg([b'\0'], ancdata)
