@@ -32,11 +32,10 @@ Launch a child process by passing file descriptors using the systemd API.
 
 Usage
 -----
-socket-activation INET DGRAM udp --bind ::1 5353 -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
+socket-activation --socket INET DGRAM udp --bind ::1 5353 -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
 
 TODO
 ----
-* change user and group
 * UNIX socket support
 * TUN support
 * FIFO support
@@ -124,8 +123,11 @@ class SocketDefinition:
         s.set_inheritable(True)
         return s
 
-# Parse arguments:
+user = None
+group = None
 defs = []
+
+# Parse arguments:
 i = 1
 while i < len(sys.argv):
     arg = sys.argv[i]
@@ -135,18 +137,24 @@ while i < len(sys.argv):
     if arg == "--name":
         defs[-1].name = sys.argv[i+1]
         i = i + 2
-    elif arg == "--bind":
-      defs[-1].bind(sys.argv[i + 1], sys.argv[i + 2])
-      i = i + 3
-    elif arg[0:2] == "--":
-        raise NotImplementedError
-    else:
-        (family, socktype, proto) = sys.argv[i:i+3]
-        i = i + 3
+    elif arg == "--socket":
+        (family, socktype, proto) = sys.argv[i+1:i+4]
+        i = i + 4
         family = parse_family(family)
         socktype = parse_type(socktype)
         proto = parse_proto(family, proto)
         defs.append(SocketDefinition(family, socktype, proto))
+    elif arg == "--bind":
+      defs[-1].bind(sys.argv[i + 1], sys.argv[i + 2])
+      i = i + 3
+    elif arg == "--user":
+        user = sys.argv[i + 1]
+        i = i + 2
+    elif arg == "--group":
+        group = sys.argv[i + 1]
+        i = i + 2
+    else:
+        raise NotImplementedError
 exec_argv = sys.argv[i:]
 
 # Create the sockets:
@@ -159,13 +167,33 @@ for (i,definition) in enumerate(defs):
     else:
         s.detach()
 
+# Change user and group:
+uid = None
+gid = None
+if group != None:
+    import grp
+    try:
+        gid = int(group)
+    except ValueError:
+        gid = grp.getgrnam(group).gr_gid
+if user != None:
+    import pwd
+    try:
+        uid = int(user)
+    except ValueError:
+        ent = pwd.getpwnam(user)
+        uid = ent.pw_uid
+        if gid == None:
+            gid = ent.pw_gid
+if gid != None:
+    os.setgid(gid)
+if uid != None:
+    os.setuid(uid)
+
 # Prepare the environment:
 os.environ["LISTEN_FDS"] = str(len(defs))
 os.environ["LISTEN_PID"] = str(os.getpid())
 os.environ["LISTEN_FDNAMES"] = ":".join([ definition.name for definition in defs ])
 
 # Exec:
-try:
-    os.execvp(exec_argv[0], exec_argv)
-except:
-    os.exit(127)
+os.execvp(exec_argv[0], exec_argv)
