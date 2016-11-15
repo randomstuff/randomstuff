@@ -1,9 +1,0 @@
-
-/* Better integration of (dark) theme: */
-@-moz-document url(about:blank), url(about:newtab), url(about:home) {
-  :root, #newtab-vertical-margin {
-    background-color: -moz-Dialog !important;
-    /* TODO, Use -moz-DialogText as well */
-  }
-}
-
