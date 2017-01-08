@@ -21,14 +21,16 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-#
-# Use ASF RMCP to discover RMCP-aware nodes (such as AMT/AMT or IPMI)
-# Keywords: DMTF, ASF RMCP, DASH, AMT, IPMI.
 
 """
 Summary
 -------
+
+Use ASF RMCP to discover RMCP-aware nodes (such as AMT/AMT or IPMI)
+
 Launch a child process by passing file descriptors using the systemd API.
+
+Keywords: DMTF, ASF RMCP, DASH, AMT, IPMI.
 
 Usage
 -----
