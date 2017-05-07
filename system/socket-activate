@@ -26,8 +26,6 @@
 Summary
 -------
 
-Use ASF RMCP to discover RMCP-aware nodes (such as AMT/AMT or IPMI)
-
 Launch a child process by passing file descriptors using the systemd API.
 
 Keywords: DMTF, ASF RMCP, DASH, AMT, IPMI.
