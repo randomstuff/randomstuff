@@ -28,8 +28,6 @@ Summary
 
 Launch a child process by passing file descriptors using the systemd API.
 
-Keywords: DMTF, ASF RMCP, DASH, AMT, IPMI.
-
 Usage
 -----
 socket-activation --socket INET DGRAM udp --bind ::1 5353 -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
