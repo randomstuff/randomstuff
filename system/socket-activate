@@ -30,7 +30,9 @@ Launch a child process by passing file descriptors using the systemd API.
 
 Usage
 -----
-socket-activation --socket INET DGRAM udp --bind ::1 5353 -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
+
+socket-activate --socket family=INET type=DGRAM proto=udp bind=[::1]:5353 \\
+  -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
 
 TODO
 ----
@@ -65,7 +67,7 @@ def parse_type(socktype):
     Parse a socket type (STREAM, DGRAM, SEQPACKET, etc.).
     """
     if not type(socktype) == str:
-        return type
+        return socktype
     try:
         return int(socktype)
     except ValueError:
@@ -92,38 +94,68 @@ def parse_proto(family, proto):
             return socket.getprotobyname(proto)
     raise ValueError
 
+_type = type
+
+def parse_addr(family, addr, *, type=0, proto=0):
+    if _type(addr) != str:
+        return addr
+    if family == socket.AF_INET or family == socket.AF_INET6:
+        i = addr.rfind(":")
+        port = addr[i+1:]
+        addr = addr[:i]
+        if addr[0] == '[' and addr[-1] == ']':
+            addr = addr[1:-2]
+        res = socket.getaddrinfo(addr, port,
+                                 family=family,
+                                 type=type, proto=proto)
+        return res[0][4]
+
 class SocketDefinition:
     """
     Description of a socket we want to create.
     """
 
-    def __init__(self, family=socket.AF_INET, socktype=socket.SOCK_STREAM, proto=0):
-        self._family = family
-        self._socktype = socktype
-        self._proto = proto
-        self._bind = None
-        self.name = "unknown"
+    def __init__(self, family=socket.AF_INET6, type=socket.SOCK_STREAM, proto=0, *,
+        name="unknown", listen=None, bind=None, connect=None):
+        self.family = parse_family(family)
+        self.type = parse_type(type)
+        self.proto = parse_proto(self.family, proto)
+        if bind is not None:
+            self.bind = parse_addr(self.family, bind, type=self.type)
+        else:
+            self.bind = None
+        if connect is not None:
+            self.connect = parse_addr(self.family, connect, type=self.type)
+        else:
+            self.connect = None
+        if listen is not None:
+            self.listen = int(listen)
+        else:
+            self.listen = None
 
-    def bind(self, addr, port):
-        # TODO, handle non INET as well
-        res = socket.getaddrinfo(addr, port,
-                                 family=self._family,
-                                 type=self._socktype, proto=self._proto)
-        self._bind = res[0][4]
+        self.name = name
 
     def create(self):
         """
         Create the socket.
         """
-        s = socket.socket(self._family, self._socktype, self._proto)
-        if self._bind != None:
-            s.bind(self._bind)
+        s = socket.socket(self.family, self.type, self.proto)
+        if self.bind is not None:
+            s.bind(self.bind)
+        if self.connect is not None:
+            s.connect(self.connect)
+        if self.listen is not None:
+            s.listen(self.listen)
         s.set_inheritable(True)
         return s
 
 user = None
 group = None
 defs = []
+
+def to_kw(param):
+    i = param.index("=")
+    return (param[:i], param[i+1:])
 
 # Parse arguments:
 i = 1
@@ -132,19 +164,15 @@ while i < len(sys.argv):
     if arg == "--":
         i = i + 1
         break
-    if arg == "--name":
-        defs[-1].name = sys.argv[i+1]
-        i = i + 2
-    elif arg == "--socket":
-        (family, socktype, proto) = sys.argv[i+1:i+4]
-        i = i + 4
-        family = parse_family(family)
-        socktype = parse_type(socktype)
-        proto = parse_proto(family, proto)
-        defs.append(SocketDefinition(family, socktype, proto))
-    elif arg == "--bind":
-      defs[-1].bind(sys.argv[i + 1], sys.argv[i + 2])
-      i = i + 3
+    if arg == "--socket":
+        j = i + 1
+        while j < len(sys.argv):
+            if sys.argv[j].startswith("--"):
+                break
+            j = j + 1
+        params = dict([ to_kw(param) for param in sys.argv[i+1:j] ])
+        defs.append(SocketDefinition(**params))
+        i = j
     elif arg == "--user":
         user = sys.argv[i + 1]
         i = i + 2
