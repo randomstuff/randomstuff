@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+
+# The MIT License (MIT)
+#
+# Copyright (c) 2017 Gabriel Corona
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+"""
+Query xsettings and print them as YAML.
+
+See https://standards.freedesktop.org/xsettings-spec/xsettings-spec-0.5.html
+"""
+
+from sys import argv
+import ruamel.yaml as yaml
+from Xlib.display import Display
+
+(TYPE_INTEGER, TYPE_STRING, TYPE_COLOR) = range(3)
+
+def pad(count):
+    """
+    Compute the padding after a given field.
+
+    Args:
+      count (int): size of the argument
+
+    Returns:
+      int: padding size
+    """
+    res = 4 - (count % 4)
+    if res == 4:
+        return 0
+    return res
+
+def xsettings_iter(display_name=None, screen=0):
+    """
+    List xsettings properties.
+
+    Args:
+      display_name (str): explicit DISPLAY value
+      screen (int): screen number
+
+    Yields:
+      (str, object): property key-value pair
+    """
+    display = Display(display_name)
+    xsettings_atom = display.intern_atom("_XSETTINGS_S{}".format(screen))
+    property_atom = display.intern_atom("_XSETTINGS_SETTINGS")
+    window = display.get_selection_owner(xsettings_atom)
+    if not window:
+        raise Exception("Could not X11 selection for thie screen")
+
+    # Extra metadata:
+    yield ("_WM_NAME", window.get_wm_name())
+    yield ("_WM_CLASS", window.get_wm_class())
+
+    prop = window.get_property(property_atom, property_atom, 0, 1024*1024)
+
+    # 1	   CARD8    byte-order
+    # 3               unused
+    # 4    CARD32   SERIAL
+    # 4    CARD32   N_SETTINGS
+    data = prop.value
+    byteorder = "big" if data[0] else "little"
+    serial = int.from_bytes(data[4:8], byteorder=byteorder)
+    nsettings = int.from_bytes(data[8:12], byteorder=byteorder)
+    position = 12
+
+    for _ in range(nsettings):
+
+        # 1      SETTING_TYPE  type
+        # 1                    unused
+        # 2      n             name-len
+        # n      STRING8       name
+        # P                    unused, p=pad(n)
+        # 4      CARD32        last-change-serial
+        setting_type = data[position]
+        name_len = int.from_bytes(data[position+2:position+4], byteorder=byteorder)
+        name = data[position+4:position+4+name_len].decode("UTF-8")
+        position = position + 4 + name_len + pad(name_len)
+        last_serial_change = int.from_bytes(data[0:4], byteorder=byteorder)
+        position = position + 4
+
+        if setting_type == TYPE_INTEGER:
+            # 4      INT32         value
+            value = int.from_bytes(data[position:position+4], byteorder=byteorder)
+            position = position + 4
+
+        elif setting_type == TYPE_STRING:
+            # 4      n             value-len
+            # n      STRING8       value
+            # P                    unused, p=pad(n)
+            value_len = int.from_bytes(data[position:position+4], byteorder=byteorder)
+            value = data[position + 4 : position + 4 + value_len].decode("UTF-8")
+            position = position + 4 + value_len + pad(value_len)
+
+        elif setting_type == TYPE_COLOR:
+            # 2      CARD16        red
+            # 2      CARD16        blue
+            # 2      CARD16        green
+            # 2      CARD16        alpha
+            red = int.from_bytes(data[position:position+2], byteorder=byteorder)
+            green = int.from_bytes(data[position+2:position+4], byteorder=byteorder)
+            blue = int.from_bytes(data[position+4:position+6], byteorder=byteorder)
+            alpha = int.from_bytes(data[position+6:position+8], byteorder=byteorder)
+            value = (red, green, blue, alpha)
+            position = position + 8
+
+        else:
+            raise Exception("Unknown setting type")
+
+        yield (name, value)
+
+def main():
+    """
+    Main
+    """
+    if len(argv) < 2:
+        screen = 0
+    else:
+        screen = int(argv[1])
+    print(yaml.round_trip_dump(dict(xsettings_iter(screen=screen))))
+
+if __name__ == "__main__":
+    main()
