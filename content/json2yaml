@@ -1,13 +1,13 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env python3
 
-require 'yaml'
-require 'json'
+import sys
+import json
+import yaml
 
-if ARGV.length==0
-  data = JSON.load(STDIN)
-else
-  File.open ARGV[0] do |f|
-    data = JSON.load(f)
-  end
-end
-puts YAML.dump(data)
+if len(sys.argv) < 2:
+    data = json.load(sys.stdin)
+else:
+    with open(sys.argv[1], "rt") as f:
+        data = json.load(f)
+
+sys.stdout.write(yaml.dump(data))
