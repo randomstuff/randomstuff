@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 """
 Testing program which spawns a child process and receive a file descriptor from it.
