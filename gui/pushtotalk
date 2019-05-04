@@ -1,0 +1,52 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import signal
+
+import click
+
+from Xlib import X, display, Xutil
+from Xlib.protocol import request
+from Xlib.XK import string_to_keysym
+
+
+@click.command()
+@click.option("--key", help="Key name.", required=True)
+def main(key):
+    """
+    Push-to-talk for Pulseaudio and X11.
+
+    Enable audio input (mic) by holding a key.
+    """
+
+    d = display.Display()
+    screen = d.screen()
+    root = screen.root
+
+    keysym = string_to_keysym(key)
+    for (keycode, _i) in d.keysym_to_keycodes(keysym):
+        root.grab_key(
+            key=keycode,
+            modifiers=X.AnyModifier,
+            owner_events=False,
+            pointer_mode=X.GrabModeAsync,
+            keyboard_mode=X.GrabModeAsync,
+        )
+
+    root.change_attributes(event_mask=X.KeyPressMask | X.KeyReleaseMask)
+
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    try:
+        while True:
+            event = d.next_event()
+            if event.type == X.KeyPress:
+                os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 0")
+            elif event.type == X.KeyRelease:
+                os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 1")
+    finally:
+        os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 0")
+
+
+if __name__ == "__main__":
+    main()
