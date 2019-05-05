@@ -11,6 +11,16 @@ from Xlib.protocol import request
 from Xlib.XK import string_to_keysym
 
 
+def set_mic(status):
+    """
+    Enable/disable mic.
+    """
+    if status:
+        os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 0")
+    else:
+        os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 1")
+
+
 @click.command()
 @click.option("--key", help="Key name.", required=True)
 def main(key):
@@ -38,14 +48,15 @@ def main(key):
 
     signal.signal(signal.SIGINT, signal.default_int_handler)
     try:
+        set_mic(False)
         while True:
             event = d.next_event()
             if event.type == X.KeyPress:
-                os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 0")
+                set_mic(True)
             elif event.type == X.KeyRelease:
-                os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 1")
+                set_mic(False)
     finally:
-        os.system("pacmd set-source-mute @DEFAULT_SOURCE@ 0")
+        set_mic(True)
 
 
 if __name__ == "__main__":
