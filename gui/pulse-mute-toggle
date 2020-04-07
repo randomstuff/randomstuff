@@ -1,0 +1,105 @@
+#!/usr/bin/python3
+
+"""
+Toggle PulseAudio default source mute with desktop notification.
+"""
+
+from typing import List
+from sys import argv
+from os import environ
+import socket
+import re
+import dbus
+
+
+def get_pulse_path() -> str:
+    if "PULSE_RUNTIME_PATH" in environ:
+        return environ["PULSE_RUNTIME_PATH"]
+    return environ["XDG_RUNTIME_DIR"] + "/pulse"
+
+
+def execute_pulse_command(command: str) -> str:
+    """
+    Send a pulse command
+    """
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+    sock.connect(get_pulse_path() + "/cli")
+    sock.sendall((command + "\n").encode("utf-8"))
+    sock.shutdown(socket.SHUT_WR)
+
+    res = b""
+    while True:
+        chunk = sock.recv(4096)
+        if len(chunk) == 0:
+            break
+        res = res + chunk
+    return res.decode("utf-8")
+
+
+def parse_pulse_list(output: str) -> List[dict]:
+    """
+    Very crude processing of list-source/list-sinks listings
+    """
+    entries = []
+    entry = None
+    for line in output.split("\n"):
+        m1 = re.match("^  ([* ]) index: ([0-9]+)$", line)
+        if m1 is not None:
+            if entry is not None:
+                entries.append(entry)
+                entry = None
+            entry = {"index": m1.group(2), "default": m1.group(1) == "*"}
+            continue
+        m2 = re.match("^\t([^:]+): (.+)$", line)
+        if m2 is not None:
+            entry[m2.group(1)] = m2.group(2)
+        # TODO, handle continuation lines
+    if entry is not None:
+        entries.append(entry)
+    return entries
+
+
+def get_default_source() -> dict:
+    sources = parse_pulse_list(execute_pulse_command("list-sources"))
+    for source in sources:
+        if source["default"]:
+            return source
+    raise Exception("Default source not found")
+
+
+def is_default_source_mute() -> bool:
+    return get_default_source()["muted"] == "yes"
+
+
+def notify(summary: str, body: str, icon: str = ""):
+    """
+    Generate a notification
+    """
+    session_bus = dbus.SessionBus()
+    obj = session_bus.get_object(
+        "org.freedesktop.Notifications", "/org/freedesktop/Notifications"
+    )
+    iface = dbus.Interface(obj, "org.freedesktop.Notifications")
+    app_name = "toggle-pulse"
+    replaces_id = 0
+    actions = []
+    hints = {"category": "device"}
+    expire_timeout = 2000
+    iface.Notify(
+        app_name, replaces_id, icon, summary, body, actions, hints, expire_timeout
+    )
+
+
+def main():
+    # TODO, CLI arguments (choose sink/source)
+    if len(argv) > 1:
+        raise Exception("Bad argument")
+    mute = is_default_source_mute()
+    execute_pulse_command("set-source-mute @DEFAULT_SOURCE@ " + ("0" if mute else "1"))
+    mute = is_default_source_mute()
+    mute_status = "mute" if mute else "not mute"
+    notify("Default source " + mute_status, "")
+
+
+if __name__ == "__main__":
+    main()
