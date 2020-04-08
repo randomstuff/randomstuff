@@ -4,71 +4,17 @@
 Toggle PulseAudio default source mute with desktop notification.
 """
 
-from typing import List
 from sys import argv
-from os import environ
-import socket
-import re
+from os import system
 import dbus
 
 
-def get_pulse_path() -> str:
-    if "PULSE_RUNTIME_PATH" in environ:
-        return environ["PULSE_RUNTIME_PATH"]
-    return environ["XDG_RUNTIME_DIR"] + "/pulse"
-
-
-def execute_pulse_command(command: str) -> str:
-    """
-    Send a pulse command
-    """
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
-    sock.connect(get_pulse_path() + "/cli")
-    sock.sendall((command + "\n").encode("utf-8"))
-    sock.shutdown(socket.SHUT_WR)
-
-    res = b""
-    while True:
-        chunk = sock.recv(4096)
-        if len(chunk) == 0:
-            break
-        res = res + chunk
-    return res.decode("utf-8")
-
-
-def parse_pulse_list(output: str) -> List[dict]:
-    """
-    Very crude processing of list-source/list-sinks listings
-    """
-    entries = []
-    entry = None
-    for line in output.split("\n"):
-        m1 = re.match("^  ([* ]) index: ([0-9]+)$", line)
-        if m1 is not None:
-            if entry is not None:
-                entries.append(entry)
-                entry = None
-            entry = {"index": m1.group(2), "default": m1.group(1) == "*"}
-            continue
-        m2 = re.match("^\t([^:]+): (.+)$", line)
-        if m2 is not None:
-            entry[m2.group(1)] = m2.group(2)
-        # TODO, handle continuation lines
-    if entry is not None:
-        entries.append(entry)
-    return entries
-
-
-def get_default_source() -> dict:
-    sources = parse_pulse_list(execute_pulse_command("list-sources"))
-    for source in sources:
-        if source["default"]:
-            return source
-    raise Exception("Default source not found")
-
-
-def is_default_source_mute() -> bool:
-    return get_default_source()["muted"] == "yes"
+def get_pulse_dbus_connection() -> str:
+    session_bus = dbus.SessionBus()
+    obj = session_bus.get_object("org.PulseAudio1", "/org/pulseaudio/server_lookup1")
+    iface = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+    address = iface.Get("org.PulseAudio.ServerLookup1", "Address")
+    return dbus.connection.Connection(address)
 
 
 def notify(summary: str, body: str, icon: str = ""):
@@ -80,7 +26,7 @@ def notify(summary: str, body: str, icon: str = ""):
         "org.freedesktop.Notifications", "/org/freedesktop/Notifications"
     )
     iface = dbus.Interface(obj, "org.freedesktop.Notifications")
-    app_name = "toggle-pulse"
+    app_name = "toggle-mute-pulse"
     replaces_id = 0
     actions = []
     hints = {"category": "device"}
@@ -90,15 +36,33 @@ def notify(summary: str, body: str, icon: str = ""):
     )
 
 
+def toggle_mute_device(device) -> bool:
+    device_props = dbus.Interface(device, "org.freedesktop.DBus.Properties")
+    mute = device_props.Get("org.PulseAudio.Core1.Device", "Mute")
+    device_props.Set("org.PulseAudio.Core1.Device", "Mute", not mute)
+    return not mute
+
+
 def main():
     # TODO, CLI arguments (choose sink/source)
     if len(argv) > 1:
         raise Exception("Bad argument")
-    mute = is_default_source_mute()
-    execute_pulse_command("set-source-mute @DEFAULT_SOURCE@ " + ("0" if mute else "1"))
-    mute = is_default_source_mute()
-    mute_status = "mute" if mute else "not mute"
-    notify("Default source " + mute_status, "")
+
+    try:
+        connection = get_pulse_dbus_connection()
+    except:
+        system("pacmd load-module module-dbus-protocol")
+        connection = get_pulse_dbus_connection()
+    obj = connection.get_object("org.PulseAudio.Core1", "/org/pulseaudio/core1")
+    core = dbus.Interface(obj, "org.PulseAudio.Core1")
+
+    props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+    device_path = props.Get("org.PulseAudio.Core1", "FallbackSource")
+
+    device = connection.get_object("org.PulseAudio.Core1", device_path)
+    mute = toggle_mute_device(device)
+
+    notify("Audio source " + ("muted" if mute else "unmuted"), "")
 
 
 if __name__ == "__main__":
