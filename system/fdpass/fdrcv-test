@@ -30,14 +30,14 @@ def recv_fd(sock):
 
 if pid == 0:
     # Exec specified command in the child:
-    a.close();
+    a.close()
     os.dup2(b.fileno(), 0)
     os.dup2(b.fileno(), 1)
     b.close()
     os.execvp(sys.argv[1], sys.argv[1:])
 else:
     # Receive file descriptor and wait in the parent:
-    b.close();
+    b.close()
     s = recv_fd(a)
     os.waitpid(pid, 0)
     print(s)
