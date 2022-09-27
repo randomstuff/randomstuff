@@ -1,0 +1,8 @@
+#!/bin/sh
+# Just take a screenshot.
+# Designed to be bound to "Prind Screen"
+
+set -e
+
+scrot ~/$(date -u +%Y-%m-%dT%H:%M:%SZ).png
+notify-send "Screenshot taken"
