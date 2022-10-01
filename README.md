@@ -32,6 +32,10 @@ Desktop (`desktop/`)
 * `xrandr-helper`, helper for xrandr
 * `xsettings-query`, dump XSETTINGS
 
+Devices (`device/`):
+
+* `feel-my-power`, display notification about battery status of devices (eg. for wireless gamepad) using upower
+
 Disk (`disk/`):
 
 * `mount-diskimage`, mount an image (ISO) using udisks2

@@ -1,0 +1,260 @@
+#!/usr/bin/python3
+
+"""
+Device battery notifier (eg. wireless gamepads)
+
+It uses Upower to listen on device charge state and notify the user.
+
+References
+----------
+
+https://upower.freedesktop.org/docs/UPower.html
+https://upower.freedesktop.org/docs/Device.html
+https://developer.gnome.org/notification-spec/
+"""
+
+import sys
+from os import environ
+
+import dbus
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
+from xml.etree import ElementTree
+
+import click
+
+
+UPOWER_NAME = "org.freedesktop.UPower"
+BLUEZ_NAME = "org.bluez"
+
+UPOWER_PATH = "/org/freedesktop/UPower"
+
+PROPERTIES_IFACE = "org.freedesktop.DBus.Properties"
+UPOWER_IFACE = "org.freedesktop.UPower"
+DEVICE_IFACE = "org.freedesktop.UPower.Device"
+
+NOTIFICATIONS_NAME = "org.freedesktop.Notifications"
+NOTIFICATIONS_PATH = "/org/freedesktop/Notifications"
+NOTIFICATIONS_IFACE = "org.freedesktop.Notifications"
+BLUEZ_DEVICE_IFACE = "org.bluez.Device1"
+
+
+def notify(summary, body, icon=""):
+    """
+    Generate a notification
+    """
+    obj = session_bus.get_object(NOTIFICATIONS_NAME, NOTIFICATIONS_PATH)
+    iface = dbus.Interface(obj, NOTIFICATIONS_IFACE)
+    app_name = "battery-status"
+    replaces_id = 0
+    actions = []
+    hints = {
+        "category": "device",
+    }
+    expire_timeout = 2000
+    iface.Notify(
+        app_name, replaces_id, icon, summary, body, actions, hints, expire_timeout
+    )
+
+
+STATE_TO_TEXT = {
+    1: "charging",
+    2: "discharging",
+    3: "empty",
+    4: "fully charged",
+    5: "pending charge",
+    6: "pending discharge",
+}
+
+LEVEL_TO_TEXT = {
+    3: "low",
+    4: "critical",
+    6: "normal",
+    7: "high",
+    8: "full",
+}
+
+WARNING_TO_TEXT = {
+    3: "low",
+    4: "critical",
+    5: "action",
+}
+
+TYPE_TO_ICON = {
+    # 1: Line Power
+    2: "battery",
+    # 3: Ups
+    4: "video-display",
+    5: "input-mouse",
+    6: "input-keyboard",
+    7: "pda",
+    8: "phone",
+    9: "multimedia-player",
+    11: "input-tablet",
+    11: "computer",
+    12: "input-gaming",
+}
+
+
+def iter_interface_paths(bus, bus_name, path, interface):
+    object = bus.get_object(bus_name, path)
+    introspect_iface = dbus.Interface(object, "org.freedesktop.DBus.Introspectable")
+    data = introspect_iface.Introspect()
+    for child in ElementTree.fromstring(data):
+        if child.tag == "interface":
+            if child.attrib["name"] == interface:
+                yield path
+        elif child.tag == "node":
+            yield from iter_interface_paths(
+                bus, bus_name, path + "/" + child.attrib["name"], interface
+            )
+
+
+def resolve_native_path(path):
+    if path and not path.startswith("/"):
+        return "/sys/class/power_supply/" + path
+    return None
+
+
+def read_uevent(path):
+    uevent = {}
+    for line in open(path, "rt").read().split("\n"):
+        if not line:
+            continue
+        i = line.find("=")
+        key = line[:i]
+        value = line[i + 1 :]
+        uevent[key] = value
+    return uevent
+
+
+class DeviceWatcher:
+    def __init__(self, device):
+        self._obj = device
+        self._prop_iface = dbus.Interface(device, PROPERTIES_IFACE)
+        self._dev_iface = dbus.Interface(device, DEVICE_IFACE)
+        self._name = ""
+        self._icon = ""
+        self._receiver = None
+
+        props = self._get_properties()
+        self._update_identity(props)
+        self._handle_properties(props)
+
+    def _get_properties(self):
+        return self._prop_iface.GetAll(DEVICE_IFACE)
+
+    def _update_identity(self, props):
+        self.name = props.get("Model")
+        self.icon = TYPE_TO_ICON.get(props.get("Type"), "")
+
+        path = resolve_native_path(props.get("NativePath"))
+        if path:
+            try:
+                uevent = read_uevent(path + "/device/uevent")
+                if uevent.get("HID_NAME"):
+                    self.name = uevent["HID_NAME"]
+                if uevent.get("HID_UNIQ"):
+                    uniq = uevent["HID_UNIQ"]
+                    # Find short name assigned by bluez:
+                    for bus_path in iter_interface_paths(
+                        system_bus, BLUEZ_NAME, "/org/bluez", BLUEZ_DEVICE_IFACE
+                    ):
+                        item = system_bus.get_object(BLUEZ_NAME, bus_path)
+                        prop_iface = dbus.Interface(item, PROPERTIES_IFACE)
+                        address = prop_iface.Get(BLUEZ_DEVICE_IFACE, "Address")
+                        if address.upper() == uniq.upper():
+                            alias = prop_iface.Get(BLUEZ_DEVICE_IFACE, "Alias")
+                            if alias:
+                                self.name = alias
+                            else:
+                                name = prop_iface.Get(BLUEZ_DEVICE_IFACE, "Name")
+                                if name:
+                                    self.name = name
+                            icon = prop_iface.Get(BLUEZ_DEVICE_IFACE, "Icon")
+                            if icon:
+                                self.icon = icon
+                            break
+            except:
+                pass
+
+    def _handle_properties(self, props):
+        percentage = props.get("Percentage")
+        body = []
+        state = STATE_TO_TEXT.get(props.get("State"), None)
+        if state:
+            body.append(state)
+        level = LEVEL_TO_TEXT.get(props.get("BatteryLevel"), None)
+        if level:
+            body.append(level)
+        warning = WARNING_TO_TEXT.get(props.get("WarningLevel"), None)
+        if warning:
+            body.append(warning)
+        notify(f"{self.name}: {percentage}%", ("; ".join(body)), icon=self.icon)
+
+    def watch(self):
+        if self._receiver is not None:
+            return
+        self._receiver = self._dev_iface.connect_to_signal(
+            "PropertiesChanged", self._on_properties_change
+        )
+
+    def _on_properties_change(self, interface_name, props, invalidated):
+        self._handle_properties(props)
+
+    def unwatch(self):
+        if self._receiver is None:
+            return
+        self._receiver.remove()
+        self._receiver = None
+
+    def __del__(self):
+        notify(f"{self.name} disconnected", "", icon=self.icon)
+
+
+watchers = {}
+
+
+def watch_device(path):
+    print("watch " + path)
+    watcher = DeviceWatcher(system_bus.get_object(UPOWER_NAME, path))
+    watcher.watch()
+    watchers[path] = watcher
+
+
+def unwatch_device(path):
+    print("unwatch " + path)
+    path = str(path)
+    if path in watchers:
+        watchers[path].unwatch()
+        del watchers[path]
+
+
+# TODO, watch for dbus lost, etc.
+@click.command()
+def main():
+    "Device battery notifier (eg. wireless gamepads)"
+
+    global system_bus
+    global session_bus
+
+    DBusGMainLoop(set_as_default=True)
+    system_bus = dbus.SystemBus()
+    session_bus = dbus.SessionBus()
+    loop = GLib.MainLoop()
+
+    # Watch for device added/removed:
+    upower = system_bus.get_object(UPOWER_NAME, UPOWER_PATH)
+    upower_iface = dbus.Interface(upower, dbus_interface=UPOWER_IFACE)
+    upower_iface.connect_to_signal("DeviceAdded", watch_device)
+    upower_iface.connect_to_signal("DeviceRemoved", unwatch_device)
+
+    # Watch existing devices:
+    for device in upower_iface.EnumerateDevices():
+        watch_device(device)
+
+    loop.run()
+
+
+if __name__ == "__main__":
+    main()
