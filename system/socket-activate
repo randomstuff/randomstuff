@@ -51,6 +51,7 @@ import socket
 import sys
 import os
 
+
 def parse_family(family):
     """
     Parse an addres family (INET, INET6, LOCAL, etc.)
@@ -62,6 +63,7 @@ def parse_family(family):
     except ValueError:
         return getattr(socket, "AF_" + family)
 
+
 def parse_type(socktype):
     """
     Parse a socket type (STREAM, DGRAM, SEQPACKET, etc.).
@@ -72,6 +74,7 @@ def parse_type(socktype):
         return int(socktype)
     except ValueError:
         return getattr(socket, "SOCK_" + socktype)
+
 
 def parse_proto(family, proto):
     """
@@ -94,29 +97,39 @@ def parse_proto(family, proto):
             return socket.getprotobyname(proto)
     raise ValueError
 
+
 _type = type
+
 
 def parse_addr(family, addr, *, type=0, proto=0):
     if _type(addr) != str:
         return addr
     if family == socket.AF_INET or family == socket.AF_INET6:
         i = addr.rfind(":")
-        port = addr[i+1:]
+        port = addr[i + 1 :]
         addr = addr[:i]
-        if addr[0] == '[' and addr[-1] == ']':
+        if addr[0] == "[" and addr[-1] == "]":
             addr = addr[1:-2]
-        res = socket.getaddrinfo(addr, port,
-                                 family=family,
-                                 type=type, proto=proto)
+        res = socket.getaddrinfo(addr, port, family=family, type=type, proto=proto)
         return res[0][4]
+
 
 class SocketDefinition:
     """
     Description of a socket we want to create.
     """
 
-    def __init__(self, family=socket.AF_INET6, type=socket.SOCK_STREAM, proto=0, *,
-        name="unknown", listen=None, bind=None, connect=None):
+    def __init__(
+        self,
+        family=socket.AF_INET6,
+        type=socket.SOCK_STREAM,
+        proto=0,
+        *,
+        name="unknown",
+        listen=None,
+        bind=None,
+        connect=None
+    ):
         self.family = parse_family(family)
         self.type = parse_type(type)
         self.proto = parse_proto(self.family, proto)
@@ -149,13 +162,16 @@ class SocketDefinition:
         s.set_inheritable(True)
         return s
 
+
 user = None
 group = None
 defs = []
 
+
 def to_kw(param):
     i = param.index("=")
-    return (param[:i], param[i+1:])
+    return (param[:i], param[i + 1 :])
+
 
 # Parse arguments:
 i = 1
@@ -170,7 +186,7 @@ while i < len(sys.argv):
             if sys.argv[j].startswith("--"):
                 break
             j = j + 1
-        params = dict([ to_kw(param) for param in sys.argv[i+1:j] ])
+        params = dict([to_kw(param) for param in sys.argv[i + 1 : j]])
         defs.append(SocketDefinition(**params))
         i = j
     elif arg == "--user":
@@ -184,7 +200,7 @@ while i < len(sys.argv):
 exec_argv = sys.argv[i:]
 
 # Create the sockets:
-for (i,definition) in enumerate(defs):
+for (i, definition) in enumerate(defs):
     s = definition.create()
     # Move it at the suitable place:
     if s.fileno() != i + 3:
@@ -198,12 +214,14 @@ uid = None
 gid = None
 if group != None:
     import grp
+
     try:
         gid = int(group)
     except ValueError:
         gid = grp.getgrnam(group).gr_gid
 if user != None:
     import pwd
+
     try:
         uid = int(user)
     except ValueError:
@@ -219,7 +237,7 @@ if uid != None:
 # Prepare the environment:
 os.environ["LISTEN_FDS"] = str(len(defs))
 os.environ["LISTEN_PID"] = str(os.getpid())
-os.environ["LISTEN_FDNAMES"] = ":".join([ definition.name for definition in defs ])
+os.environ["LISTEN_FDNAMES"] = ":".join([definition.name for definition in defs])
 
 # Exec:
 os.execvp(exec_argv[0], exec_argv)

@@ -18,6 +18,7 @@ import array
 (a, b) = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM, 0)
 pid = os.fork()
 
+
 def recv_fd(sock):
     fds = array.array("i")
     cmsg_len = socket.CMSG_LEN(fds.itemsize)
@@ -27,6 +28,7 @@ def recv_fd(sock):
             fds.frombytes(cmsg_data)
             return fds[0]
     sys.exit(1)
+
 
 if pid == 0:
     # Exec specified command in the child:

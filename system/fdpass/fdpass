@@ -23,4 +23,4 @@ s.connect((sys.argv[1], int(sys.argv[2])))
 
 # Pass the file descriptor:
 ancdata = [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array("i", [s.fileno()]))]
-socket.socket(fileno = 1).sendmsg([b'\0'], ancdata)
+socket.socket(fileno=1).sendmsg([b"\0"], ancdata)
