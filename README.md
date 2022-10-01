@@ -19,6 +19,7 @@ Content:
 * `tilt-render`, CLI for Ruby Tilt
 * `tsv2html`, convert TSV to HTML `<table>`
 * `yaml2json`, convert YAML to JSON
+* `decode-hc1-covid-certificate`, decode a HC1 COVID certificate
 
 Desktop (`desktop/`)
 
