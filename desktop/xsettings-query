@@ -34,6 +34,7 @@ from Xlib.display import Display
 
 (TYPE_INTEGER, TYPE_STRING, TYPE_COLOR) = range(3)
 
+
 def pad(count):
     """
     Compute the padding after a given field.
@@ -48,6 +49,7 @@ def pad(count):
     if res == 4:
         return 0
     return res
+
 
 def xsettings_iter(display_name=None, screen=0):
     """
@@ -71,7 +73,7 @@ def xsettings_iter(display_name=None, screen=0):
     yield ("_WM_NAME", window.get_wm_name())
     yield ("_WM_CLASS", window.get_wm_class())
 
-    prop = window.get_property(property_atom, property_atom, 0, 1024*1024)
+    prop = window.get_property(property_atom, property_atom, 0, 1024 * 1024)
 
     # 1	   CARD8    byte-order
     # 3               unused
@@ -92,22 +94,26 @@ def xsettings_iter(display_name=None, screen=0):
         # P                    unused, p=pad(n)
         # 4      CARD32        last-change-serial
         setting_type = data[position]
-        name_len = int.from_bytes(data[position+2:position+4], byteorder=byteorder)
-        name = data[position+4:position+4+name_len].decode("UTF-8")
+        name_len = int.from_bytes(
+            data[position + 2 : position + 4], byteorder=byteorder
+        )
+        name = data[position + 4 : position + 4 + name_len].decode("UTF-8")
         position = position + 4 + name_len + pad(name_len)
         last_serial_change = int.from_bytes(data[0:4], byteorder=byteorder)
         position = position + 4
 
         if setting_type == TYPE_INTEGER:
             # 4      INT32         value
-            value = int.from_bytes(data[position:position+4], byteorder=byteorder)
+            value = int.from_bytes(data[position : position + 4], byteorder=byteorder)
             position = position + 4
 
         elif setting_type == TYPE_STRING:
             # 4      n             value-len
             # n      STRING8       value
             # P                    unused, p=pad(n)
-            value_len = int.from_bytes(data[position:position+4], byteorder=byteorder)
+            value_len = int.from_bytes(
+                data[position : position + 4], byteorder=byteorder
+            )
             value = data[position + 4 : position + 4 + value_len].decode("UTF-8")
             position = position + 4 + value_len + pad(value_len)
 
@@ -116,10 +122,16 @@ def xsettings_iter(display_name=None, screen=0):
             # 2      CARD16        blue
             # 2      CARD16        green
             # 2      CARD16        alpha
-            red = int.from_bytes(data[position:position+2], byteorder=byteorder)
-            green = int.from_bytes(data[position+2:position+4], byteorder=byteorder)
-            blue = int.from_bytes(data[position+4:position+6], byteorder=byteorder)
-            alpha = int.from_bytes(data[position+6:position+8], byteorder=byteorder)
+            red = int.from_bytes(data[position : position + 2], byteorder=byteorder)
+            green = int.from_bytes(
+                data[position + 2 : position + 4], byteorder=byteorder
+            )
+            blue = int.from_bytes(
+                data[position + 4 : position + 6], byteorder=byteorder
+            )
+            alpha = int.from_bytes(
+                data[position + 6 : position + 8], byteorder=byteorder
+            )
             value = (red, green, blue, alpha)
             position = position + 8
 
@@ -127,6 +139,7 @@ def xsettings_iter(display_name=None, screen=0):
             raise Exception("Unknown setting type")
 
         yield (name, value)
+
 
 def main():
     """
@@ -137,6 +150,7 @@ def main():
     else:
         screen = int(argv[1])
     print(yaml.round_trip_dump(dict(xsettings_iter(screen=screen))))
+
 
 if __name__ == "__main__":
     main()

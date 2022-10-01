@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 
 """
-splitapparmor - Split ASCII Armor files into multiple files
+splitapparmor - Split ASCII Armor (or PEM) files into multiple files
 """
 
 import re

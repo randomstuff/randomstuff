@@ -23,7 +23,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Generate redirections for a Joomla ro WordPress migration.
+# Generate redirections for a Joomla to WordPress migration.
 # Needs to be customised based on the WordPress URI layout.
 
 require "mysql2"

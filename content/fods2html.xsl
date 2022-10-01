@@ -9,7 +9,7 @@
 		xmlns="http://www.w3.org/1999/xhtml"
 		>
 
-  <!-- Generate HTML from OpenDocument plain XML for spreadsheets (.fods)
+  <!-- Convert OpenDocument plain XML spreadsheets (.fods) into HTML
 
        Normal spreadsheets are zip files and can be processed with:
 
