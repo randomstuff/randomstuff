@@ -1,6 +1,10 @@
 A collection of simple programs/scripts which I found useful at some point
 but which do not deserve a repository on their own
 
+Admin (`admin/`):
+
+* `gnt-instance-vnc-connect`, open a RDP connection to a Ganeti instance from a Ganeti node
+
 CMS (`cms/`):
 
 * `joomla_to_wordpress_redirect`, generate redirections for a Joomla to WordPress migration.
