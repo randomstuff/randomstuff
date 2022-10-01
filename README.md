@@ -63,3 +63,7 @@ System (`system/`):
 * `seccompstuff/nonetwork`, disable networking system calls using seccomp-bpf
 * `procdump`, dump a process memory without stopping it
 * `socket`-activate, systemd-style socket activation (like systemd-socket-activate)
+
+Interaction with known web sites/services (`websites/`):
+
+* `github-api`, CLI for Github API
