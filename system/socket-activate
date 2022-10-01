@@ -241,3 +241,4 @@ os.environ["LISTEN_FDNAMES"] = ":".join([definition.name for definition in defs]
 
 # Exec:
 os.execvp(exec_argv[0], exec_argv)
+exit(255)
