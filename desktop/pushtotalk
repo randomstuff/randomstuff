@@ -54,6 +54,9 @@ def main(key):
     root = screen.root
 
     keysym = string_to_keysym(key)
+    if (keysym == 0):
+        sys.stderr.write(f"Unknown key name: {key}\n")
+        sys.exit(1)
     for (keycode, _i) in d.keysym_to_keycodes(keysym):
         root.grab_key(
             key=keycode,
