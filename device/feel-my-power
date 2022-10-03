@@ -45,13 +45,13 @@ def notify(summary, body, icon=""):
     """
     obj = session_bus.get_object(NOTIFICATIONS_NAME, NOTIFICATIONS_PATH)
     iface = dbus.Interface(obj, NOTIFICATIONS_IFACE)
-    app_name = "battery-status"
+    app_name = "feel-my-power"
     replaces_id = 0
     actions = []
     hints = {
         "category": "device",
     }
-    expire_timeout = 2000
+    expire_timeout = 5000
     iface.Notify(
         app_name, replaces_id, icon, summary, body, actions, hints, expire_timeout
     )
