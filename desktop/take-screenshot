@@ -5,4 +5,4 @@
 set -e
 dir=$(xdg-user-dir PICTURES) || dir="$HOME"
 scrot "$dir/screenshot_$(date -u +%Y-%m-%dT%H:%M:%SZ).png"
-notify-send -i video-display -t 2000 "Screenshot"
+notify-send -a take-screenshot -i video-display -t 2000 "Screenshot"
