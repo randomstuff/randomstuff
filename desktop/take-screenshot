@@ -3,6 +3,6 @@
 # Designed to be bound to "Prind Screen"
 
 set -e
-
-scrot ~/$(date -u +%Y-%m-%dT%H:%M:%SZ).png
-notify-send "Screenshot taken"
+dir=$(xdg-user-dir PICTURES) || dir="$HOME"
+scrot "$dir/screenshot_$(date -u +%Y-%m-%dT%H:%M:%SZ).png"
+notify-send -i video-display -t 2000 "Screenshot"
