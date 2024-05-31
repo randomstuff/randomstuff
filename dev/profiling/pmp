@@ -20,7 +20,7 @@ while [ $# != 0 ]; do
             ;;
         -s)
             # Waiting time between samples (in secondes):
-            sleeptime="$1"
+            sleeptime="$2"
             shift 2
             ;;
         --gdb)
