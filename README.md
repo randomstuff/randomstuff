@@ -30,12 +30,16 @@ Desktop (`desktop/`)
 
 * `gui_filter`, filter the content of the clipboard/selection through a UNIX command
 * `keybinder`, execute a program when a global keyboard shortcut is triggered
-* `pulse-mute-toggle`, toggle PulseAudio default source mute with desktop notification
-* `pushtotalk`, push-to-talk using PulseAudio
 * `take-screenshot`, take a screenhot
 * `which-theme`, which themes are available in both GTK2 and GTK3?
 * `xrandr-helper`, helper for xrandr
 * `xsettings-query`, dump XSETTINGS
+
+Desktop sound (`desktop/sound`):
+
+* `pulse-mute-toggle`, toggle PulseAudio default source mute with desktop notification
+* `pushtotalk`, push-to-talk using PulseAudio
+* `pulse-toggle-output`, toggle default output
 
 Devices (`device/`):
 
