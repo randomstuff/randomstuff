@@ -41,6 +41,7 @@ socket-activate --socket userns=/proc/28039/ns/user netns=/proc/28039/ns/net \\
 TODO
 ----
 * UNIX socket support
+* VSOCK socket support
 * TUN support
 * FIFO support
 * ulimit
