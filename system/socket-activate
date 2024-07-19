@@ -136,6 +136,7 @@ class SocketDefinition:
         connect=None,
         netns=None,
         userns=None,
+        mountns=None,
     ):
         self.family = parse_family(family)
         self.type = parse_type(type)
@@ -156,6 +157,7 @@ class SocketDefinition:
         self.name = name
         self.netns = netns
         self.userns = userns
+        self.mountns = mountns
 
     def _create_socket(self):
         s = socket.socket(self.family, self.type, self.proto)
@@ -188,6 +190,7 @@ class SocketDefinition:
                 # ... which joins the namespaces, ...
                 self._join_ns(self.userns, os.CLONE_NEWUSER)
                 self._join_ns(self.netns, os.CLONE_NEWNET)
+                self._join_ns(self.mountns, os.CLONE_NEWNS)
                 try:
                     sock1.close()
                     # ... creates the socket ...
