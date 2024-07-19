@@ -26,13 +26,17 @@
 Summary
 -------
 
-Launch a child process by passing file descriptors using the systemd API.
+Launch a child process by passing file descriptors using LISTEN_FDS.
 
 Usage
 -----
 
 socket-activate --socket family=INET type=DGRAM proto=udp bind=[::1]:5353 \\
   -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
+
+socket-activate --socket userns=/proc/28039/ns/user netns=/proc/28039/ns/net \\
+    family=INET type=STREAM listen=10 bind=127.0.0.1:9992 \\
+    -- python3 socket-listen-inetd cat
 
 TODO
 ----
@@ -50,6 +54,7 @@ TODO
 import socket
 import sys
 import os
+import array
 
 
 def parse_family(family):
@@ -128,7 +133,9 @@ class SocketDefinition:
         name="unknown",
         listen=None,
         bind=None,
-        connect=None
+        connect=None,
+        netns=None,
+        userns=None,
     ):
         self.family = parse_family(family)
         self.type = parse_type(type)
@@ -147,11 +154,10 @@ class SocketDefinition:
             self.listen = None
 
         self.name = name
+        self.netns = netns
+        self.userns = userns
 
-    def create(self):
-        """
-        Create the socket.
-        """
+    def _create_socket(self):
         s = socket.socket(self.family, self.type, self.proto)
         if self.bind is not None:
             s.bind(self.bind)
@@ -159,8 +165,61 @@ class SocketDefinition:
             s.connect(self.connect)
         if self.listen is not None:
             s.listen(self.listen)
-        s.set_inheritable(True)
         return s
+
+    def _join_ns(self, path, type):
+        if path is None:
+            return
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            os.setns(fd, type)
+        finally:
+            os.close(fd)
+
+    def create(self):
+        """
+        Create the socket.
+        """
+        if self.netns is not None or self.userns is not None:
+            # We create a child process ...
+            (sock1, sock2) = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+            pid = os.fork()
+            if pid == 0:
+                # ... which joins the namespaces, ...
+                self._join_ns(self.userns, os.CLONE_NEWUSER)
+                self._join_ns(self.netns, os.CLONE_NEWNET)
+                try:
+                    sock1.close()
+                    # ... creates the socket ...
+                    sock = self._create_socket()
+                    # ... and then passes the created socket to the main process.
+                    ancdata = [
+                        (
+                            socket.SOL_SOCKET,
+                            socket.SCM_RIGHTS,
+                            array.array("i", [sock.fileno()]),
+                        )
+                    ]
+                    sock2.sendmsg([b"\0"], ancdata)
+                    os._exit(0)
+                except:
+                    os._exit(255)
+            # Main process: receive the socket from the child process.
+            sock2.close()
+            fds = array.array("i")
+            cmsg_len = socket.CMSG_LEN(fds.itemsize)
+            msg, ancdata, flags, addr = sock1.recvmsg(1, cmsg_len)
+            for cmsg_level, cmsg_type, cmsg_data in ancdata:
+                if (cmsg_level, cmsg_type) == (socket.SOL_SOCKET, socket.SCM_RIGHTS):
+                    fds.frombytes(cmsg_data)
+                    sock = socket.fromfd(fds[0], self.family, self.type, self.proto)
+                    os.close(fds[0])
+                    sock1.close()
+                    return sock
+            else:
+                raise Exception("Missing socket")
+        else:
+            return self._create_socket()
 
 
 user = None
@@ -200,8 +259,9 @@ while i < len(sys.argv):
 exec_argv = sys.argv[i:]
 
 # Create the sockets:
-for (i, definition) in enumerate(defs):
+for i, definition in enumerate(defs):
     s = definition.create()
+    s.set_inheritable(True)
     # Move it at the suitable place:
     if s.fileno() != i + 3:
         os.dup2(s.fileno(), i + 3)
