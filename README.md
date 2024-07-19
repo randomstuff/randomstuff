@@ -61,6 +61,7 @@ Network (`network`/):
 * `ssdp-listen.py`, listen for SSDP announces and dump responses
 * `ssdp-search.py`, launch a SSDP search request and dump responses
 * `upnp-display-interfaces.py`, display human friendly description of some UPnP service
+* `ipls`, list IP addresses in a subnet
 
 System (`system/`):
 
