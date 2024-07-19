@@ -63,7 +63,8 @@ System (`system/`):
 * `fdpass`, pass a file descriptor over STDOUT
 * `seccompstuff/nonetwork`, disable networking system calls using seccomp-bpf
 * `procdump`, dump a process memory without stopping it
-* `socket`-activate, systemd-style socket activation (like systemd-socket-activate)
+* `socket-activate`, systemd-style (LISTEN_FDS) socket activation (like systemd-socket-activate)
+* `socket-listen-inetd`, LISTEN_FDS/inetd bridge
 
 Interaction with known web sites/services (`websites/`):
 
