@@ -56,6 +56,7 @@ import socket
 import sys
 import os
 import array
+import selectors
 
 
 def parse_family(family):
@@ -236,6 +237,8 @@ def to_kw(param):
     return (param[:i], param[i + 1 :])
 
 
+lazy = False
+
 # Parse arguments:
 i = 1
 while i < len(sys.argv):
@@ -243,7 +246,13 @@ while i < len(sys.argv):
     if arg == "--":
         i = i + 1
         break
-    if arg == "--socket":
+    if arg == "--lazy":
+        lazy = True
+        i = i + 1
+    elif arg == "--eager":
+        lazy = False
+        i = i + 1
+    elif arg == "--socket":
         j = i + 1
         while j < len(sys.argv):
             if sys.argv[j].startswith("--"):
@@ -302,6 +311,12 @@ if uid != None:
 os.environ["LISTEN_FDS"] = str(len(defs))
 os.environ["LISTEN_PID"] = str(os.getpid())
 os.environ["LISTEN_FDNAMES"] = ":".join([definition.name for definition in defs])
+
+if lazy:
+    selector = selectors.DefaultSelector()
+    for i in range(len(defs)):
+        selector.register(i + 3, selectors.EVENT_READ)
+    events = selector.select()
 
 # Exec:
 os.execvp(exec_argv[0], exec_argv)
