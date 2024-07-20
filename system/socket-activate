@@ -124,6 +124,22 @@ def parse_addr(family, addr, *, type=0, proto=0):
             return b"\0" + addr[1:].encode("UTF-8")
         else:
             return addr
+    elif family == socket.AF_VSOCK:
+        token1, token2 = addr.split(":")
+        try:
+            cid = int(token1)
+        except ValueError:
+            if token1 == "hypervisor":
+                cid = 0
+            elif token1 == "local":
+                cid = 1
+            elif token1 == "host":
+                cid = 2
+            # TODO, "guest"
+            else:
+                raise ValueError("Invalid value")
+        port = int(token2)
+        return cid, port
     else:
         raise Exception("Cannot handle family type")
 
