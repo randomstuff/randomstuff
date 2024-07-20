@@ -111,7 +111,7 @@ _type = type
 def parse_addr(family, addr, *, type=0, proto=0):
     if _type(addr) != str:
         return addr
-    if family == socket.AF_INET or family == socket.AF_INET6:
+    elif family == socket.AF_INET or family == socket.AF_INET6:
         i = addr.rfind(":")
         port = addr[i + 1 :]
         addr = addr[:i]
@@ -119,6 +119,13 @@ def parse_addr(family, addr, *, type=0, proto=0):
             addr = addr[1:-2]
         res = socket.getaddrinfo(addr, port, family=family, type=type, proto=proto)
         return res[0][4]
+    elif family == socket.AF_UNIX:
+        if addr.startswith("@"):
+            return b"\0" + addr[1:].encode("UTF-8")
+        else:
+            return addr
+    else:
+        raise Exception("Cannot handle family type")
 
 
 class SocketDefinition:
