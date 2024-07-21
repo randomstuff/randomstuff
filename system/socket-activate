@@ -31,7 +31,7 @@ Launch a child process by passing file descriptors using LISTEN_FDS.
 Usage
 -----
 
-socket-activate --socket family=INET type=DGRAM proto=udp bind=[::1]:5353 \\
+socket-activate --socket family=INET6 type=DGRAM proto=udp bind=[::1]:5353 \\
   -- ./dnsfwd --connect-tcp 127.0.01:53 --loglevel 8
 
 socket-activate --socket userns=/proc/28039/ns/user netns=/proc/28039/ns/net \\
