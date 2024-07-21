@@ -297,6 +297,7 @@ while i < len(sys.argv):
 exec_argv = sys.argv[i:]
 
 # Create the sockets:
+# TODO, fix this. This is not correct in some cases.
 for i, definition in enumerate(defs):
     s = definition.create()
     s.set_inheritable(True)
