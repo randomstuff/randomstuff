@@ -74,8 +74,8 @@ if "LISTEN_FDNAMES" in os.environ:
 
 for i in range(listen_fds):
     fd = 3 + i
-    sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
-    os.close(fd)
+    sock = socket.socket(fileno=fd)
+    sock.set_inheritable(False)
     selector.register(sock, selectors.EVENT_READ, accept)
 
 while True:
