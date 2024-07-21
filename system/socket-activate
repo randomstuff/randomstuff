@@ -233,19 +233,23 @@ class SocketDefinition:
                 except:
                     os._exit(255)
             # Main process: receive the socket from the child process.
-            sock2.close()
-            fds = array.array("i")
-            cmsg_len = socket.CMSG_LEN(fds.itemsize)
-            msg, ancdata, flags, addr = sock1.recvmsg(1, cmsg_len)
-            for cmsg_level, cmsg_type, cmsg_data in ancdata:
-                if (cmsg_level, cmsg_type) == (socket.SOL_SOCKET, socket.SCM_RIGHTS):
-                    fds.frombytes(cmsg_data)
-                    sock = socket.fromfd(fds[0], self.family, self.type, self.proto)
-                    os.close(fds[0])
-                    sock1.close()
-                    return sock
-            else:
-                raise Exception("Missing socket")
+            try:
+                sock2.close()
+                fds = array.array("i")
+                cmsg_len = socket.CMSG_LEN(fds.itemsize)
+                msg, ancdata, flags, addr = sock1.recvmsg(1, cmsg_len)
+                for cmsg_level, cmsg_type, cmsg_data in ancdata:
+                    if (cmsg_level, cmsg_type) == (socket.SOL_SOCKET, socket.SCM_RIGHTS):
+                        fds.frombytes(cmsg_data)
+                        sock = socket.fromfd(fds[0], self.family, self.type, self.proto)
+                        os.close(fds[0])
+                        sock1.close()
+                        return sock
+                else:
+                    raise Exception("Missing socket")
+            finally:
+                if os.waitpid(pid, 0)[1] != 0:
+                    raise Exception("Error in child process")
         else:
             return self._create_socket()
 
