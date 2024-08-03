@@ -160,6 +160,7 @@ class SocketDefinition:
         netns=None,
         userns=None,
         mountns=None,
+        mode=None,
     ):
         self.family = parse_family(family)
         self.type = parse_type(type)
@@ -177,6 +178,11 @@ class SocketDefinition:
         else:
             self.listen = None
 
+        if mode is not None:
+            self.mode = int(mode, 8)
+        else:
+            self.mode = None
+
         self.name = name
         self.netns = netns
         self.userns = userns
@@ -186,6 +192,8 @@ class SocketDefinition:
         s = socket.socket(self.family, self.type, self.proto)
         if self.bind is not None:
             s.bind(self.bind)
+            if self.mode is not None:
+                os.chmod(self.bind, self.mode)
         if self.connect is not None:
             s.connect(self.connect)
         if self.listen is not None:
