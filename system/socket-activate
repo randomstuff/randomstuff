@@ -237,7 +237,10 @@ class SocketDefinition:
                 cmsg_len = socket.CMSG_LEN(fds.itemsize)
                 msg, ancdata, flags, addr = sock1.recvmsg(1, cmsg_len)
                 for cmsg_level, cmsg_type, cmsg_data in ancdata:
-                    if (cmsg_level, cmsg_type) == (socket.SOL_SOCKET, socket.SCM_RIGHTS):
+                    if (cmsg_level, cmsg_type) == (
+                        socket.SOL_SOCKET,
+                        socket.SCM_RIGHTS,
+                    ):
                         fds.frombytes(cmsg_data)
                         sock = socket.fromfd(fds[0], self.family, self.type, self.proto)
                         os.close(fds[0])
@@ -297,16 +300,7 @@ while i < len(sys.argv):
 exec_argv = sys.argv[i:]
 
 # Create the sockets:
-# TODO, fix this. This is not correct in some cases.
-for i, definition in enumerate(defs):
-    s = definition.create()
-    s.set_inheritable(True)
-    # Move it at the suitable place:
-    if s.fileno() != i + 3:
-        os.dup2(s.fileno(), i + 3)
-        s.close()
-    else:
-        s.detach()
+socks = [definition.create() for definition in defs]
 
 # Change user and group:
 uid = None
@@ -332,6 +326,25 @@ if gid != None:
     os.setgid(gid)
 if uid != None:
     os.setuid(uid)
+
+for i in range(len(socks)):
+    expected_fd = i + 3
+    if socks[i].fileno() != expected_fd:
+        # Completexity in quadratic which is not great
+        # but we don't expect to have a lot of FDs.
+        for j in range(i + 1, len(socks)):
+            if socks[j].fileno() == expected_fd:
+                new_sock = socks[j].dup()
+                if new_sock.fileno() == expected_fd:
+                    raise Exception("Unexpected FD")
+                socks[j].close()
+                socks[j] = new_sock
+                break
+        os.dup2(socks[i].fileno(), expected_fd)
+        new_sock = socket.socket(fileno=expected_fd)
+        socks[i].close()
+        socks[i] = new_sock
+    socks[i].set_inheritable(True)
 
 # Prepare the environment:
 os.environ["LISTEN_FDS"] = str(len(defs))
