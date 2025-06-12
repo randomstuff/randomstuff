@@ -23,6 +23,11 @@ while [ $# != 0 ]; do
             sleeptime="$2"
             shift 2
             ;;
+        --generic)
+            # Use GDB for sampling:
+            mode=generic
+            shift
+            ;;
         --gdb)
             # Use GDB for sampling:
             mode=gdb
@@ -44,13 +49,13 @@ while [ $# != 0 ]; do
             elfutils_stack="$(which eu-stack || which stack)"
             shift
             ;;
-        -*)
-            echo "Unexpected argument" >&2
-            exit 1
-            ;;
         --)
             shift
             break
+            ;;
+        -*)
+            echo "Unexpected argument" >&2
+            exit 1
             ;;
         *)
             process="$1"
@@ -58,11 +63,6 @@ while [ $# != 0 ]; do
             ;;
     esac
 done
-
-if [ "$process" = "" ]; then
-    echo "Missing process" >&2
-    exit 1
-fi
 
 sample_gdb() {
     gdb -ex "set pagination 0" -ex "thread apply all bt" -batch -p "$process" "$@" 2> /dev/null
@@ -75,6 +75,9 @@ sample_jstack() {
 }
 sample_jcmd() {
     jcmd "$process" Thread.print "$@"
+}
+sample_generic() {
+    "$@"
 }
 
 if [ "$nsamples" == "" ]; then
