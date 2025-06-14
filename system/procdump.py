@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 from sys import stdout
 from typing import Tuple, List, Optional

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # OCR japanese text from selection and send to clipboard.
 
 set -e

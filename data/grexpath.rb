@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+#!/usr/bin/ruby
 # Grep with xpath.
 # ex: grexpath //a/@href https://highlightjs.org/
 

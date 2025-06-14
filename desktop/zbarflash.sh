@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Scan QR code from selection and send to clipboard.
 
 set -e
