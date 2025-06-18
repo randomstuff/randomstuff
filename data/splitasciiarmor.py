@@ -55,7 +55,7 @@ def split_file(filename):
             else:
                 lines.append(line)
         if len(lines) != 0:
-            raise Error("File not terminated properly")
+            raise Exception("File not terminated properly")
 
 filenames = sys.argv[1:]
 for filename in filenames:
