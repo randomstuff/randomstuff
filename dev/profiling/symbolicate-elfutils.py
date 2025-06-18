@@ -104,15 +104,17 @@ stdin = sys.stdin
 stdout = sys.stdout
 stderr = sys.stderr
 
-perf_re   = re.compile("^([0-9a-fA-F]*) ([0-9a-fA-F]*) (.*)$")
-pid_re    = re.compile("^PID ([0-9]*)")
-entry_re  = re.compile("^#[0-9]* *0x([0-9a-fA-F]*)$")
+perf_re = re.compile("^([0-9a-fA-F]*) ([0-9a-fA-F]*) (.*)$")
+pid_re = re.compile("^PID ([0-9]*)")
+entry_re = re.compile("^#[0-9]* *0x([0-9a-fA-F]*)$")
+
 
 class Symbol:
     def __init__(self, start, size, name):
         self.start = start
         self.end = start + size
         self.name = name
+
 
 # Read a /tmp/perf-pid.map file:
 def read_map(filename):
@@ -122,13 +124,15 @@ def read_map(filename):
             match = perf_re.match(line)
             if match:
                 start = int(match.group(1), 16)
-                size  = int(match.group(2), 16)
-                name  = match.group(3)
+                size = int(match.group(2), 16)
+                name = match.group(3)
                 res.append(Symbol(start, size, name))
-    res.sort(key = lambda x: x.start)
+    res.sort(key=lambda x: x.start)
     return res
 
+
 maps = {}
+
 
 # Find the map file for the process:
 def get_map(pid):
@@ -142,22 +146,24 @@ def get_map(pid):
     maps[pid] = perf_map
     return perf_map
 
+
 # Do a binary each in the map file in order to find the symbol:
 def lookup(perf_map, address):
     i = 0
     j = len(perf_map)
     if j == 0:
         return None
-    while(True):
-        if (j < i):
+    while True:
+        if j < i:
             return None
         k = round((j + i) // 2)
-        if (address < perf_map[k].start):
+        if address < perf_map[k].start:
             j = k - 1
-        elif (address >= perf_map[k].end):
+        elif address >= perf_map[k].end:
             i = k + 1
         else:
             return perf_map[k].name
+
 
 perf_map = {}
 
@@ -174,7 +180,7 @@ for line in stdin:
         address = int(match.group(1), 16)
         symbol = lookup(perf_map, address)
         if symbol != None:
-            stdout.write(line.rstrip('\n') + " " + symbol + "\n")
+            stdout.write(line.rstrip("\n") + " " + symbol + "\n")
         else:
             stdout.write(line)
         continue

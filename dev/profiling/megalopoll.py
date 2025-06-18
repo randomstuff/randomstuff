@@ -1,78 +1,106 @@
 #!/usr/bin/python3
 
-from typing import List, Optional
-import click
+import argparse
 import re
 import datetime
 import time
 import subprocess
 
-ZERO = datetime.timedelta(0)
 
+def parse_duration(value: str) -> datetime.timedelta:
 
-class DurationType(click.ParamType):
-    name = "duration"
+    m = re.match("^([.0-9]+)([a-zA-z]*)$", value)
+    if m:
+        value = float(m.groups()[0])
+        unit = m.groups()[1]
 
-    def convert(self, value, param, ctx):
-        if isinstance(value, datetime.timedelta):
-            return value
-
-        if isinstance(value, (int, float)):
+        # No unit = seconds:
+        if unit == "s":
             return datetime.timedelta(seconds=value)
 
-        try:
-            if re.fullmatch("[0-9]+", value):
-                return datetime.timedelta(seconds=int(value))
-            if re.fullmatch("[0-9]+\\.[0-9]+", value):
-                return datetime.timedelta(seconds=float(value))
-            # TODO, 5s, etc.
-            # TODO, ISO duration
-            # TODO, 5Hz
-        except ValueError:
-            pass
+        # SI units:
+        if unit == "":
+            return datetime.timedelta(seconds=value)
+        if unit == "ms":
+            return datetime.timedelta(milliseconds=value)
+        if unit == "us":
+            return datetime.timedelta(microseconds=value)
+        if unit == "Hz":
+            return datetime.timedelta(seconds=1 / value)
+        if unit == "kHz":
+            return datetime.timedelta(seconds=1 / (1000 * value))
 
-        self.fail(f"{value!r} is not a valid duration")
+    # TODO, ISO duration ("PT5S")
+    raise ValueError("Invalid duration value")
 
 
-DURATION = DurationType()
+description = """
+Generic polling tool, executes a given command at regulat interval.
+It works somewhat like 'watch' but does not mess with your stdio.
+This can be used for collecting metric, profiling, etc.
+"""
+
+epilog = """
+Examples:
+
+    megalopoll -n 0.01 gdb -ex "set pagination 0" -ex "thread apply all bt" -batch -p "$pid" > app.gdbstacks
+    megalopoll -n 0.01 stack -p "$pid" > app.stacks
+    megalopoll -n 0.01 jstack -l "$pid" > app.jstacks
+    megalopoll -n 0.01 jcmd Thread.print "$pid" > app.jstacks
+    megalopoll -n 0.01 mysql -e"SELECT info FROM INFORMATION_SCHEMA.PROCESSLIST where info is not NULL and db != 'information_schema';" -B -h 127.0.0.1 -u foo -pxoxo > app.sql
+"""
 
 
-# TODO, add support for sqlparse.parsestream?
-@click.command
-@click.option("--errexit/--no-errexit", "-e", default=False)
-@click.option("--interval", "-n", type=DURATION, default="1")
-@click.option("--count", "-c", type=int, required=False)
-@click.argument("args", nargs=-1)
-def main(errexit=False, interval=datetime.timedelta(1), args=[], count=None):
-    """
-    Execute a given command at regulat interval.
+def main():
 
-    It is like watch but does not mess with stdio.
+    parser = argparse.ArgumentParser(
+        description=description,
+        allow_abbrev=False,
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--errexit",
+        "-e",
+        action=argparse.BooleanOptionalAction,
+        help="Stops if the command fails",
+    )
+    parser.add_argument(
+        "--interval",
+        "-n",
+        required=False,
+        help="Polling duration/intervale",
+        default="1",
+    )
+    parser.add_argument(
+        "--count", "-c", required=False, type=int, help="Maximum number of executions"
+    )
+    parser.add_argument(
+        "argv",
+        nargs=argparse.REMAINDER,
+        type=str,
+        action="extend",
+        help="Program (and arguments) to spawn",
+    )
+    args = parser.parse_args()
 
-    This can be used for collecting metric, profiling, etc.
+    errexit = args.errexit
+    interval = parse_duration(args.interval)
+    argv = args.argv
+    if argv and argv[0] == "--":
+        argv = argv[1:]
+    count = args.count
 
-    Examples:
-
-        megalopoll -n 0.01 gdb -ex "set pagination 0" -ex "thread apply all bt" -batch -p "$pid" > app.gdbstacks
-
-        megalopoll -n 0.01 stack -p "$pid" > app.stacks
-
-        megalopoll -n 0.01 jstack -l "$pid" > app.jstacks
-
-        megalopoll -n 0.01 jcmd Thread.print "$pid" > app.jstacks
-
-        megalopoll -n 0.01 mysql -e"SELECT info FROM INFORMATION_SCHEMA.PROCESSLIST where info is not NULL and db != 'information_schema';" -B -h 127.0.0.1 -u foo -pxoxo > app.sql
-    """
     interval_s = interval.total_seconds()
     if count is not None:
         for _ in range(count):
-            res = subprocess.run(args)
+            res = subprocess.run(argv)
             if errexit and res.returncode != 0:
                 exit(res.returncode)
             time.sleep(interval_s)
     else:
         while True:
-            res = subprocess.run(args)
+            res = subprocess.run(argv)
             if errexit and res.returncode != 0:
                 exit(res.returncode)
             time.sleep(interval_s)
