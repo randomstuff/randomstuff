@@ -95,6 +95,7 @@ Simplicity:
 * `megalopoll.py`, polling command, simple building block for Poor man's profiling
 * `pmp.sh`, [Poor-man's profiler](https://poormansprofiler.org/) implementation 
 * `stackcollapse-jstack.py`, collapse Java stacks from `jstack` and `jcmd` for [FlameGraph](https://github.com/brendangregg/FlameGraph)
+* `symbolicate-elfutils.py`, add symbols from /tmp/perf-$pid.map into output of elfutils stack
 
 For SQL:
 
