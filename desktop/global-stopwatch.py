@@ -70,6 +70,7 @@ class App:
         self.notification = Notify.Notification.new(message, "", "dialog-information")
         self.notification.show()
 
+
 epilog = """example:
 
   global-stopwatch.py --start F1 --stop F2 --restart F3 --startstop F4
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     if args.start:
         for key in args.start.split(","):
             Keybinder.bind(key, app.start_callback)
-    if args.stop :
+    if args.stop:
         for key in args.stop.split(","):
             Keybinder.bind(key, app.stop_callback)
     if args.startstop:
