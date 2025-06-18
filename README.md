@@ -58,7 +58,7 @@ Simplicity:
 * `splitasciiarmor.py`, split ASCII Armor (or PEM) files into multiple files
 * `tsv2html.sed`, convert TSV to HTML `<table>`
 * `yaml2json.py`, convert YAML to JSON
-* `zlibcat`, decompress raw zlib (like `zcat` and friends)
+* `zlibcat.py`, decompress raw zlib (like `zcat` and friends)
 
 ### Desktop
 
@@ -119,7 +119,6 @@ For SQL:
 
 `misc/`:
 
-* `askpass`
 * `sleep-exponential.py`, like `sleep` with following an exponential distribution
 
 ### Network
