@@ -37,7 +37,6 @@ Simplicity:
 
 `content/`:
 
-* `tilt-render/`, simple tool to render documents based on the Ruby tilt library
 * `cleanup_html.rb`, cleanup HTML snippet
 
 ### Data
