@@ -115,9 +115,6 @@ def main(pid: int, perms: str):
     vmas = get_vmas(pid)
     with open(f"/proc/{pid}/mem", "rb") as file:
         for vma in vmas:
-            import sys
-
-            sys.stderr.write(str(vma) + "\n")
             # Check VMS permissions againt requested ones:
             if not match_perms(perms, vma.perms):
                 continue
