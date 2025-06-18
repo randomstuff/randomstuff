@@ -1,13 +1,5 @@
 #!/usr/bin/python3
 
-"""
-Execute a program when a global keyboard shortcut is triggered.
-
-Example:
-
-    keybinder "<Control>m" pactl set-sink-mute @DEFAULT_SOURCE@ toggle
-"""
-
 import gi
 import signal
 import argparse
