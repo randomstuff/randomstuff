@@ -53,15 +53,15 @@ def main(errexit=False, interval=datetime.timedelta(1), args=[], count=None):
 
     Examples:
 
-        poll -n 0.01 gdb -ex "set pagination 0" -ex "thread apply all bt" -batch -p "$pid" > app.gdbstacks
+        megalopoll -n 0.01 gdb -ex "set pagination 0" -ex "thread apply all bt" -batch -p "$pid" > app.gdbstacks
 
-        poll -n 0.01 stack -p "$pid" > app.stacks
+        megalopoll -n 0.01 stack -p "$pid" > app.stacks
 
-        poll -n 0.01 jstack -l "$pid" > app.jstacks
+        megalopoll -n 0.01 jstack -l "$pid" > app.jstacks
 
-        poll -n 0.01 jcmd Thread.print "$pid" > app.jstacks
+        megalopoll -n 0.01 jcmd Thread.print "$pid" > app.jstacks
 
-        poll -n 0.01 mysql -e"SELECT info FROM INFORMATION_SCHEMA.PROCESSLIST where info is not NULL and db != 'information_schema';" -B -h 127.0.0.1 -u foo -pxoxo > app.sql
+        megalopoll -n 0.01 mysql -e"SELECT info FROM INFORMATION_SCHEMA.PROCESSLIST where info is not NULL and db != 'information_schema';" -B -h 127.0.0.1 -u foo -pxoxo > app.sql
     """
     interval_s = interval.total_seconds()
     if count is not None:

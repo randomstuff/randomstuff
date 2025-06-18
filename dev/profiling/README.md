@@ -4,7 +4,7 @@
 * stackcollapse-jstack, process stack samples from jstack/cmd
 * symbolicate-elfutils, symbolicate elfutils stack samples using /tmp/perf-$pid.map
 * aggregate-counts, aggregate (count or sum) input lines
-* poll, polling command, simple building block for Poor man's profiling
+* megalopoll, polling command, simple building block for Poor man's profiling
 
 For SQL:
 
