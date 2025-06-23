@@ -32,7 +32,7 @@
 # * Includes samples where the thread is in a waiting state.
 # * Option to mark samples where the thread is in waiting state.
 
-from sys import stdin
+import sys
 import re
 from dataclasses import dataclass
 import argparse
@@ -71,6 +71,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate flamegraph stacks from jstack/jcmd output",
         allow_abbrev=False,
+    )
+    parser.add_argument(
+        "infiles", nargs="*", type=argparse.FileType("rt"), default=[sys.stdin]
     )
     parser.add_argument(
         "--line-numbers", default=True, action=argparse.BooleanOptionalAction
@@ -115,49 +118,52 @@ def main():
 
     sample: Optional[Sample] = None
 
-    for line in stdin:
-        line = line.rstrip()
+    print(args.infiles)
+    for infile in args.infiles:
+        for line in infile:
+            line = line.rstrip()
 
-        if not line:
-            if sample is not None:
-                commit(sample)
-                sample = None
-            continue
+            if not line:
+                if sample is not None:
+                    commit(sample)
+                    sample = None
+                continue
 
-        match = THREAD_LINE.match(line)
-        if match is None:
-            match = THREAD_LINE2.match(line)
-        if match is not None:
-            sample = Sample(
-                tname=match.group(1),
-                tid=int(match.group(2)),
-                stack=[],
-            )
-            continue
-        if sample is None:
-            continue
+            match = THREAD_LINE.match(line)
+            if match is None:
+                match = THREAD_LINE2.match(line)
+            if match is not None:
+                sample = Sample(
+                    tname=match.group(1),
+                    tid=int(match.group(2)),
+                    stack=[],
+                )
+                continue
+            if sample is None:
+                continue
 
-        match = THREAD_STATE_LINE.match(line)
-        if match is not None:
-            sample.state = match.group(1)
-            continue
+            match = THREAD_STATE_LINE.match(line)
+            if match is not None:
+                sample.state = match.group(1)
+                continue
 
-        match = AT_LINE.match(line)
-        if match is not None:
-            code = match.group(1)
-            info = match.group(2)
+            match = AT_LINE.match(line)
+            if match is not None:
+                code = match.group(1)
+                info = match.group(2)
 
-            match2 = INFO.search(info)
-            if match2 is not None and line_numbers:
-                line = match2.group(1)
-                if short_line_numbers:
-                    sample.stack.insert(0, ":" + str(line))
-                else:
-                    sample.stack.insert(0, code + ":" + str(line))
-            sample.stack.insert(0, code)
+                match2 = INFO.search(info)
+                if match2 is not None and line_numbers:
+                    line = match2.group(1)
+                    if short_line_numbers:
+                        sample.stack.insert(0, ":" + str(line))
+                    else:
+                        sample.stack.insert(0, code + ":" + str(line))
+                sample.stack.insert(0, code)
 
-    if sample is not None:
-        commit(sample)
+        if sample is not None:
+            commit(sample)
+            sample = None
 
     if not streaming:
         for stack, count in stacks.items():
