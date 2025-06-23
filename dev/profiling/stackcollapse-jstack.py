@@ -70,8 +70,11 @@ WAITING_STATES = ["WAITING", "TIMED_WAITING", "LOCKED"]
 @click.option("--line-numbers/--no-line-numbers", default=True)
 @click.option("--short-line-numbers/--no-short-line-numbers", default=False)
 @click.option("--state/--no-state", "show_state", default=True)
-@click.option("--state/--no-state", "show_state", default=True)
-def main(line_numbers: bool, show_state: bool, short_line_numbers: bool):
+@click.option("--streaming/--no-streaming", "streaming", default=True)
+def main(line_numbers: bool, show_state: bool, short_line_numbers: bool, streaming: bool):
+
+    stacks = {}
+
     def commit(sample: Sample):
         if not sample.stack:
             return
@@ -83,7 +86,11 @@ def main(line_numbers: bool, show_state: bool, short_line_numbers: bool):
         suffix = ""
         if show_state and sample.state:
             suffix = ";" + sample.state
-        print(thread + ";" + ";".join(sample.stack) + suffix + " 1")
+        stack = thread + ";" + ";".join(sample.stack) + suffix
+        if streaming:
+            print(stack + " 1")
+        else:
+            stacks[stack] = stacks.get(stack, 0) + 1
 
     sample: Optional[Sample] = None
 
@@ -131,5 +138,8 @@ def main(line_numbers: bool, show_state: bool, short_line_numbers: bool):
     if sample is not None:
         commit(sample)
 
+    if not streaming:
+        for stack, count in stacks.items():
+            print(stack + " " + str(count))
 
 main()
