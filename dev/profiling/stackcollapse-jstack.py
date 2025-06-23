@@ -35,8 +35,8 @@
 from sys import stdin
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
-import click
+import argparse
+from typing import List, Optional
 
 
 # eg. "main" #1 prio=5 os_prio=0 cpu=15,63ms elapsed=0,90s tid=0x00007f0f1c016dc0 nid=0x9dcd waiting on condition  [0x00007f0f22727000]
@@ -66,12 +66,33 @@ class Sample:
 WAITING_STATES = ["WAITING", "TIMED_WAITING", "LOCKED"]
 
 
-@click.command()
-@click.option("--line-numbers/--no-line-numbers", default=True)
-@click.option("--short-line-numbers/--no-short-line-numbers", default=False)
-@click.option("--state/--no-state", "show_state", default=True)
-@click.option("--streaming/--no-streaming", "streaming", default=True)
-def main(line_numbers: bool, show_state: bool, short_line_numbers: bool, streaming: bool):
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="Generate flamegraph stacks from jstack/jcmd output",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--line-numbers", default=True, action=argparse.BooleanOptionalAction
+    )
+    parser.add_argument(
+        "--short-line-numbers", default=False, action=argparse.BooleanOptionalAction
+    )
+    parser.add_argument(
+        "--state",
+        dest="show_state",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--streaming", default=True, action=argparse.BooleanOptionalAction
+    )
+
+    args = parser.parse_args()
+    line_numbers: bool = args.line_numbers
+    show_state: bool = args.show_state
+    short_line_numbers: bool = args.short_line_numbers
+    streaming: bool = args.streaming
 
     stacks = {}
 
@@ -142,4 +163,6 @@ def main(line_numbers: bool, show_state: bool, short_line_numbers: bool, streami
         for stack, count in stacks.items():
             print(stack + " " + str(count))
 
-main()
+
+if __name__ == "__main__":
+    main()
