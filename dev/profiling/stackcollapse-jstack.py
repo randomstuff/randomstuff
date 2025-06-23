@@ -40,10 +40,10 @@ from typing import List, Optional
 
 
 # eg. "main" #1 prio=5 os_prio=0 cpu=15,63ms elapsed=0,90s tid=0x00007f0f1c016dc0 nid=0x9dcd waiting on condition  [0x00007f0f22727000]
-THREAD_LINE = re.compile('^"([^"]+)" #([0-9])+ ')
+THREAD_LINE = re.compile('^"([^"]+)" #([0-9]+) ')
 
 # eg. "pool-12-thread-1" prio=5 Id=86 TIMED_WAITING
-THREAD_LINE2 = re.compile('^"([^"]+)" prio=[0-9]+ Id=([0-9])+ ')
+THREAD_LINE2 = re.compile('^"([^"]+)" prio=[0-9]+ Id=([0-9]+) ')
 
 # eg.   java.lang.Thread.State: TIMED_WAITING (sleeping)
 THREAD_STATE_LINE = re.compile(r"^\s+java\.lang\.Thread\.State: ([A-Z_]+)")
