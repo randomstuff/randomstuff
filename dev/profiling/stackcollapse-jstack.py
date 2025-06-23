@@ -46,10 +46,10 @@ THREAD_LINE = re.compile('^"([^"]+)" #([0-9])+ ')
 THREAD_LINE2 = re.compile('^"([^"]+)" prio=[0-9]+ Id=([0-9])+ ')
 
 # eg.   java.lang.Thread.State: TIMED_WAITING (sleeping)
-THREAD_STATE_LINE = re.compile("^\s+java\.lang\.Thread\.State: ([A-Z_]+)")
+THREAD_STATE_LINE = re.compile(r"^\s+java\.lang\.Thread\.State: ([A-Z_]+)")
 
 # eg.  at java.lang.Thread.sleep(java.base@17.0.2/Native Method)
-AT_LINE = re.compile("^\s+at ([^\(]+)\(([^\)]+)")
+AT_LINE = re.compile(r"^\s+at ([^\(]+)\(([^\)]+)")
 
 INFO = re.compile(":([0-9]+)$")
 
@@ -68,9 +68,10 @@ WAITING_STATES = ["WAITING", "TIMED_WAITING", "LOCKED"]
 
 @click.command()
 @click.option("--line-numbers/--no-line-numbers", default=True)
+@click.option("--short-line-numbers/--no-short-line-numbers", default=False)
 @click.option("--state/--no-state", "show_state", default=True)
-@click.option("--emoji/--no-emoji", "show_emoji", default=False)
-def main(line_numbers: bool, show_state: bool, show_emoji: bool):
+@click.option("--state/--no-state", "show_state", default=True)
+def main(line_numbers: bool, show_state: bool, short_line_numbers: bool):
     def commit(sample: Sample):
         if not sample.stack:
             return
@@ -79,15 +80,9 @@ def main(line_numbers: bool, show_state: bool, show_emoji: bool):
 
         thread = sample.tname + "#" + str(sample.tid)
 
-        idle = sample.state in WAITING_STATES
-
         suffix = ""
-        if show_state:
-            if idle:
-                # _[i] is supposed to mean "inline".
-                # I'm actually using it to mean idle.
-                suffix = ";😴" if show_emoji else "_[i]"
-
+        if show_state and sample.state:
+            suffix = ";" + sample.state
         print(thread + ";" + ";".join(sample.stack) + suffix + " 1")
 
     sample: Optional[Sample] = None
@@ -127,7 +122,10 @@ def main(line_numbers: bool, show_state: bool, show_emoji: bool):
             match2 = INFO.search(info)
             if match2 is not None and line_numbers:
                 line = match2.group(1)
-                sample.stack.insert(0, code + ":" + str(line))
+                if short_line_numbers:
+                    sample.stack.insert(0, ":" + str(line))
+                else:
+                    sample.stack.insert(0, code + ":" + str(line))
             sample.stack.insert(0, code)
 
     if sample is not None:
