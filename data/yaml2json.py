@@ -8,8 +8,7 @@ import yaml
 
 parser = argparse.ArgumentParser(description='Convert YAML to JSON.')
 parser.add_argument('filename', metavar='FILE', type=str, nargs='?',
-                    allow_abbrev=False,
-                    help='Input YAML files')
+                    help='Input file(s)')
 parser.add_argument('--pretty', action='store_true', default=False, help='Pretty print')
 args = parser.parse_args()
 
