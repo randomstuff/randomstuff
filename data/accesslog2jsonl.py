@@ -1,15 +1,14 @@
 #!/usr/bin/python3
 
+from zoneinfo import ZoneInfo
 import signal
 from typing import List, Optional, Any, Callable
 import re
 import sys
-from io import TextIOBase
 from re import Pattern
 from json import dumps
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from dateutil.tz import gettz
 from datetime import timezone
 from argparse import ArgumentParser, RawDescriptionHelpFormatter, BooleanOptionalAction
 
@@ -31,10 +30,14 @@ def parse_int(value: str) -> Optional[int]:
     return int(value)
 
 
-tz = timezone.utc
+def load_tz(tzname: str):
+    if tzname == "UTC":
+        return timezone.utc
+    else:
+        return ZoneInfo(tzname)
 
 
-def parse_date(value: str) -> datetime:
+def parse_date(value: str, tz) -> datetime:
     return datetime.strptime(value, "%d/%b/%Y:%H:%M:%S %z").astimezone(tz)
 
 
@@ -93,30 +96,32 @@ class Format:
 # Apache combined:
 # LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\"" combined
 
-COMBINED_FORMAT = Format(
-    [
-        Field("remote_addr", "[^ ]+", converter=ip_address),
-        " [^ ]+ ",
-        Field("remote_user", "[^ ]+"),
-        " \\[",
-        Field("timestamp", "[^]]+", converter=parse_date),
-        '\\] "',
-        Field("method", "[^ ]+"),
-        " ",
-        Field("path", '[^ "]+'),
-        " ",
-        Field("protocol", '[^ "]+'),
-        '" ',
-        Field("status", "[-0-9]+", converter=parse_int),
-        " ",
-        Field("body_bytes_sent", "[-0-9]+", converter=parse_int),
-        ' "',
-        Field("http_referer", '[^"]+'),
-        '" "',
-        Field("http_user_agent", '[^"]+'),
-        '"',
-    ]
-)
+
+def make_combined_format_parser(tz):
+    return Format(
+        [
+            Field("remote_addr", "[^ ]+", converter=ip_address),
+            " [^ ]+ ",
+            Field("remote_user", "[^ ]+"),
+            " \\[",
+            Field("timestamp", "[^]]+", converter=lambda x: parse_date(x, tz)),
+            '\\] "',
+            Field("method", "[^ ]+"),
+            " ",
+            Field("path", '[^ "]+'),
+            " ",
+            Field("protocol", '[^ "]+'),
+            '" ',
+            Field("status", "[-0-9]+", converter=parse_int),
+            " ",
+            Field("body_bytes_sent", "[-0-9]+", converter=parse_int),
+            ' "',
+            Field("http_referer", '[^"]+'),
+            '" "',
+            Field("http_user_agent", '[^"]+'),
+            '"',
+        ]
+    )
 
 
 def main():
@@ -131,14 +136,16 @@ def main():
         "--raw", default=False, action=BooleanOptionalAction, help="Include raw line"
     )
     parser.add_argument(
-        "--debug", default=True, action=BooleanOptionalAction, help="Include raw line"
+        "--debug", default=False, action=BooleanOptionalAction, help="Include raw line"
     )
+    parser.add_argument("--tz", default="UTC", help="Timezone")
     args = parser.parse_args()
     debug = args.debug
     raw = args.raw
     infiles = args.infiles
+    tz = load_tz(args.tz)
 
-    parse = COMBINED_FORMAT.parse
+    parse = make_combined_format_parser(tz).parse
 
     # Correctly die on broken pipe:
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
