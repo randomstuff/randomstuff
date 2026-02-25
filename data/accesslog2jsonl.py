@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import click
+import signal
 from typing import List, Optional, Any, Callable
 import re
 import sys
@@ -11,6 +11,7 @@ from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from dateutil.tz import gettz
 from datetime import timezone
+from argparse import ArgumentParser, RawDescriptionHelpFormatter, BooleanOptionalAction
 
 
 def json_mapper(obj):
@@ -77,9 +78,9 @@ class Format:
             return None
         groups = match.groups()
         return {
-            field.name: field.converter(groups[i])
-            if field.converter is not None
-            else groups[i]
+            field.name: (
+                field.converter(groups[i]) if field.converter is not None else groups[i]
+            )
             for i, field in enumerate(self._fields)
         }
 
@@ -97,9 +98,9 @@ COMBINED_FORMAT = Format(
         Field("remote_addr", "[^ ]+", converter=ip_address),
         " [^ ]+ ",
         Field("remote_user", "[^ ]+"),
-        " \[",
+        " \\[",
         Field("timestamp", "[^]]+", converter=parse_date),
-        '\] "',
+        '\\] "',
         Field("method", "[^ ]+"),
         " ",
         Field("path", '[^ "]+'),
@@ -118,21 +119,51 @@ COMBINED_FORMAT = Format(
 )
 
 
-@click.command()
-@click.argument("input", type=click.File("rt"))
-@click.option("--debug", type=bool)
-# TODO, time format option (ISO, UNIX, etc.)?
-# TODO, other output format?
-def main(input, debug):
+def main():
+
+    parser = ArgumentParser(
+        description="HTTP access log to JSON line",
+        allow_abbrev=False,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("infiles", nargs="*", default=["-"])
+    parser.add_argument(
+        "--raw", default=False, action=BooleanOptionalAction, help="Include raw line"
+    )
+    parser.add_argument(
+        "--debug", default=True, action=BooleanOptionalAction, help="Include raw line"
+    )
+    args = parser.parse_args()
+    debug = args.debug
+    raw = args.raw
+    infiles = args.infiles
+
     parse = COMBINED_FORMAT.parse
-    for line in input:
-        line = line.rstrip("\n")
-        data = parse(line)
-        if data is None:
-            if debug:
-                sys.stderr.write(line + "\n")
-            continue
-        print(dumps(data, default=json_mapper))
+
+    # Correctly die on broken pipe:
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+    for infile in infiles:
+
+        if infile == "-":
+            input = sys.stdin
+        else:
+            input = open(infile, "rt")
+
+        try:
+            for line in input:
+                line = line.rstrip("\n")
+                data = parse(line)
+                if data is None:
+                    if debug:
+                        sys.stderr.write(line + "\n")
+                    continue
+                if raw:
+                    data["raw"] = line
+                print(dumps(data, default=json_mapper))
+        finally:
+            if infile != "-":
+                input.close()
 
 
 if __name__ == "__main__":
